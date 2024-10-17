@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Metadata Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .drop-zone.dragover {
+            background-color: #f3f4f6;
+            border-color: #a5b4fc;
+        }
+        .highlight {
+            background-color: #fde68a;
+        }
+        .warning {
+            color: #dc2626;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <div class="max-w-2xl mx-auto bg-white shadow-md rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Drag and drop a file to check metadata anonymity</h1>
+
+            <!-- Drag and Drop Area -->
+            <div id="dropZone" class="drop-zone">
+                <p class="text-gray-500">Drag & drop your file here</p>
+                <p class="text-sm text-gray-400">or click to select a file</p>
+                <input type="file" id="fileInput" class="hidden" />
+            </div>
+
+            <!-- Warning Section -->
+            <div id="warningMessage" class="warning mt-6 hidden">
+                Warning: Critical fields that may compromise anonymity detected.
+            </div>
+
+            <!-- Metadata Display -->
+            <div id="metadata" class="mt-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const metadataDiv = document.getElementById('metadata');
+        const warningMessage = document.getElementById('warningMessage');
+
+        const criticalFields = ['author', 'lastModifiedBy', 'producer', 'creator'];
+
+        // Prevent default behavior (Prevent file from being opened)
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        // Add classes on drag over
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.classList.add('dragover');
+        });
+
+        // Remove classes on drag leave/drop
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.classList.remove('dragover');
+        });
+
+        // Handle file drop
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                readMetadata(files[0]);
+            }
+        });
+
+        // Allow clicking on drop zone to trigger file input
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Handle file input selection
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                readMetadata(fileInput.files[0]);
+            }
+        });
+
+        async function readMetadata(file) {
+            // Clear previous metadata
+            metadataDiv.innerHTML = '';
+            warningMessage.classList.add('hidden');
+
+            // Show loading message
+            metadataDiv.innerHTML = `<p class="text-gray-500">Reading metadata...</p>`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayMetadata(result.metadata);
+                } else {
+                    metadataDiv.innerHTML = `<p class="text-red-500">Error: ${result.error}</p>`;
+                }
+            } catch (err) {
+                metadataDiv.innerHTML = `<p class="text-red-500">Failed to read metadata</p>`;
+            }
+        }
+
+        function displayMetadata(metadata) {
+            let criticalFieldDetected = false;
+            let tableHtml = `<table class="min-w-full bg-white border mt-4">
+                                <thead>
+                                    <tr>
+                                        <th class="border px-4 py-2">Field</th>
+                                        <th class="border px-4 py-2">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+            Object.keys(metadata).forEach(key => {
+                const isCritical = criticalFields.includes(key.toLowerCase());
+                if (isCritical && metadata[key]) {
+                    criticalFieldDetected = true;
+                }
+                tableHtml += `<tr class="${isCritical ? 'highlight' : ''}">
+                                <td class="border px-4 py-2">${key}</td>
+                                <td class="border px-4 py-2">${metadata[key] || 'N/A'}</td>
+                              </tr>`;
+            });
+
+            tableHtml += '</tbody></table>';
+            metadataDiv.innerHTML = tableHtml;
+
+            if (criticalFieldDetected) {
+                warningMessage.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

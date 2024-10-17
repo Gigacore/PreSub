@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Metadata Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .drop-zone.dragover {
+            background-color: #f3f4f6;
+            border-color: #a5b4fc;
+        }
+        .highlight {
+            background-color: #fde68a;
+        }
+        .warning-banner {
+            background-color: #fef3c7;
+            color: #b45309;
+            padding: 16px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .disclaimer {
+            color: #6b7280;
+            font-size: 0.875rem;
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <div class="max-w-2xl mx-auto bg-white shadow-md rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Drag and drop a file to check metadata anonymity</h1>
+
+            <!-- Warning Banner -->
+            <% if (warning) { %>
+                <div id="warningMessage" class="warning-banner">
+                    Warning: Critical fields that may compromise anonymity detected.
+                </div>
+            <% } %>
+
+            <!-- Drag and Drop Area -->
+            <form id="uploadForm" method="post" enctype="multipart/form-data" action="/upload">
+                <div id="dropZone" class="drop-zone">
+                    <p class="text-gray-500">Drag & drop your file here</p>
+                    <p class="text-sm text-gray-400">or click to select a file</p>
+                    <input type="file" name="file" id="fileInput" class="hidden" onchange="document.getElementById('uploadForm').submit();" />
+                </div>
+            </form>
+
+            <!-- Metadata Display -->
+            <div id="metadata" class="mt-6">
+                <% if (metadata) { %>
+                    <table class="min-w-full bg-white border mt-4">
+                        <thead>
+                            <tr>
+                                <th class="border px-4 py-2">Field</th>
+                                <th class="border px-4 py-2">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% 
+                                const criticalFields = ['author', 'lastmodifiedby', 'producer', 'creator']; // Critical fields in lowercase
+                                Object.keys(metadata).forEach(key => { 
+                                    const isCritical = criticalFields.includes(key.toLowerCase()); // Case-insensitive check
+                            %>
+                                <tr class="<%= isCritical && metadata[key] ? 'highlight' : '' %>">
+                                    <td class="border px-4 py-2"><%= key %></td>
+                                    <td class="border px-4 py-2"><%= metadata[key] || 'N/A' %></td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer container max-w-2xl mx-auto p-8">
+            <p>This tool provides basic metadata checks, but authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.</p>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // Prevent default behavior (Prevent file from being opened)
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => e.preventDefault());
+            dropZone.addEventListener(eventName, (e) => e.stopPropagation());
+        });
+
+        // Highlight drop area when file is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'));
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'));
+        });
+
+        // Handle dropped file
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                fileInput.files = files;
+                document.getElementById('uploadForm').submit();
+            }
+        });
+
+        // Handle click on the dropzone to open file dialog
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+    </script>
+</body>
+</html>
