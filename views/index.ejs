@@ -3,93 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Metadata Viewer</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        .drop-zone {
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            transition: background-color 0.3s ease;
-        }
-        .drop-zone.dragover {
-            background-color: #f3f4f6;
-            border-color: #a5b4fc;
-        }
-        .highlight {
-            background-color: #fde68a;
-        }
-        .warning-banner {
-            background-color: #fef3c7;
-            color: #b45309;
-            padding: 16px;
-            border-radius: 8px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .disclaimer {
-            color: #6b7280;
-            font-size: 0.875rem;
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-        }
-    </style>
+    <title>Metadata Anonymity Checker Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-8">
-        <div class="max-w-2xl mx-auto bg-white shadow-md rounded-lg p-6">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6">Drag and drop a file to check metadata anonymity</h1>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+    <div class="w-full max-w-4xl p-6 bg-white rounded-lg shadow-lg mb-4">
+        <h1 class="text-2xl font-bold mb-4 text-center">Metadata Anonymity Checker Tool</h1>
 
-            <!-- Warning Banner -->
-            <% if (warning) { %>
-                <div id="warningMessage" class="warning-banner">
-                    Warning: Critical fields that may compromise anonymity detected.
-                </div>
-            <% } %>
-
-            <!-- Drag and Drop Area -->
-            <form id="uploadForm" method="post" enctype="multipart/form-data" action="/upload">
-                <div id="dropZone" class="drop-zone">
-                    <p class="text-gray-500">Drag & drop your file here</p>
-                    <p class="text-sm text-gray-400">or click to select a file</p>
-                    <input type="file" name="file" id="fileInput" class="hidden" onchange="document.getElementById('uploadForm').submit();" />
-                </div>
-            </form>
-
-            <!-- Metadata Display -->
-            <div id="metadata" class="mt-6">
-                <% if (metadata) { %>
-                    <table class="min-w-full bg-white border mt-4">
-                        <thead>
-                            <tr>
-                                <th class="border px-4 py-2">Field</th>
-                                <th class="border px-4 py-2">Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% 
-                                const criticalFields = ['author', 'lastmodifiedby', 'producer', 'creator']; // Critical fields in lowercase
-                                Object.keys(metadata).forEach(key => { 
-                                    const isCritical = criticalFields.includes(key.toLowerCase()); // Case-insensitive check
-                            %>
-                                <tr class="<%= isCritical && metadata[key] ? 'highlight' : '' %>">
-                                    <td class="border px-4 py-2"><%= key %></td>
-                                    <td class="border px-4 py-2"><%= metadata[key] || 'N/A' %></td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                <% } %>
+        <!-- Drag-and-Drop Zone -->
+        <form id="uploadForm" method="post" enctype="multipart/form-data" action="/upload">
+            <div id="dropZone" class="w-full h-32 border-4 border-dashed border-gray-400 flex items-center justify-center cursor-pointer bg-gray-50">
+                <p class="text-gray-600">Drag & drop your files here</p>
+                <input type="file" name="file" id="fileInput" class="hidden" onchange="document.getElementById('uploadForm').submit();" />
             </div>
+        </form>
+
+        <!-- Warning Banner -->
+        <% if (warning) { %>
+            <div id="warning-banner" class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700">
+                Warning: Critical metadata fields detected that may compromise anonymity.
+            </div>
+        <% } %>
+
+        <!-- Metadata Table -->
+        <div id="metadata" class="mt-6">
+            <% if (metadata) { %>
+                <table id="metadata-table" class="min-w-full bg-white">
+                    <thead>
+                        <tr>
+                            <th class="py-2 text-left">Field</th>
+                            <th class="py-2 text-left">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            // Define critical fields and ensure lastModifiedBy is included
+                            const criticalFields = ['author', 'lastmodifiedby', 'producer', 'creator'];
+                            // Sort metadata keys to show critical fields at the top
+                            const sortedKeys = [...Object.keys(metadata)].sort((a, b) => {
+                                const isACritical = criticalFields.includes(a.toLowerCase());
+                                const isBCritical = criticalFields.includes(b.toLowerCase());
+                                return (isACritical === isBCritical) ? 0 : (isACritical ? -1 : 1);
+                            });
+
+                            sortedKeys.forEach(key => {
+                                const isCritical = criticalFields.includes(key.toLowerCase());
+                        %>
+                            <tr class="<%= isCritical && metadata[key] ? 'bg-red-100' : '' %>">
+                                <td class="border px-4 py-2"><%= key %></td>
+                                <td class="border px-4 py-2"><%= metadata[key] || 'N/A' %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            <% } %>
         </div>
 
         <!-- Disclaimer -->
-        <div class="disclaimer container max-w-2xl mx-auto p-8">
-            <p>This tool provides basic metadata checks, but authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.</p>
-        </div>
+        <footer class="mt-6 text-gray-600 text-xs text-center">
+            Disclaimer: This tool provides basic metadata checks. Authors should still perform thorough reviews before publishing to ensure compliance with anonymity guidelines. 
+        </footer>
+    </div>
+
+    <!-- GitHub Link -->
+    <div class="text-center mt-4">
+        <a href="https://github.com/Gigacore/metadata-anonymity-checker" class="text-gray-500 text-xs" target="_blank">View on GitHub</a>
     </div>
 
     <script>
@@ -121,7 +99,7 @@
             }
         });
 
-        // Handle click on the dropzone to open file dialog
+        // Handle click on the drop zone to open file dialog
         dropZone.addEventListener('click', () => {
             fileInput.click();
         });
