@@ -1,2 +1,41 @@
-# metadata-anonymity-checker
-Metadata Anonymity Checker Tool
+# Metadata Anonymity Checker Tool
+
+## Description
+
+The Metadata Anonymity Checker Tool is designed to assist researchers and PhD candidates in ensuring the anonymity of their documents when submitting to academic conferences. This tool analyzes the metadata of various file types, including Word documents, Excel spreadsheets, PowerPoint presentations, PDFs, and images, highlighting any fields that could reveal the author's identity or affiliation. This tool is designed to perform checks locally on your machine rather than relying on third-party online services, ensuring that your paper remains confidential until it is officially published.
+
+## Features
+
+- Extraction of metadata from multiple file formats (Word, Excel, PowerPoint, PDF, images)
+- Warning for critical metadata fields that may compromise anonymity
+
+## Prerequisites
+
+- Node.js (version 14 or higher)
+- npm (Node package manager)
+
+## Installation
+
+1. **Clone the repository:**
+
+2. **Install dependencies:**
+   ```npm install```
+
+## Running the Application
+
+1. Start the server:
+   ```npm start```
+
+2. Open your browser and navigate to `http://localhost:3000`.
+
+## Contributing
+
+Contributions are welcome! If you have suggestions or improvements, please create a pull request or open an issue in the repository.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This tool provides basic metadata checks, but authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.
