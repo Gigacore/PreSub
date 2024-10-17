@@ -22,7 +22,7 @@ The Metadata Anonymity Checker Tool is designed to assist researchers in ensurin
 1. Start the server:
    ```npm start```
 
-2. Open your browser and navigate to `http://localhost:3000`.
+2. Open your browser and navigate to `http://localhost:3000`
 
 ## Contributing
 
