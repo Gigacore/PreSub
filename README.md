@@ -12,7 +12,10 @@ The Metadata Anonymity Checker Tool is designed to assist researchers in ensurin
 1. **Clone the repository**
 
 2. **Install dependencies:**
-   ```npm install```
+   ```
+   cd metadata-anonymity-checker
+   npm install
+   ```
 
 ## Running the Application
 
