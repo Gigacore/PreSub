@@ -34,4 +34,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Disclaimer
 
-This tool provides basic metadata checks, but authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.
+This tool provides basic metadata checks, authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.
