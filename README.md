@@ -4,6 +4,12 @@ The Metadata Anonymity Checker Tool is designed to assist researchers in ensurin
 
 <img width="926" alt="metadata-checker-tool" src="https://github.com/user-attachments/assets/0e46f047-68e5-409c-bdb1-d3884905dfe9">
 
+It is almost 2025, AI is everywhere, yet top-tier conferences like the ACM CHI Conference are still desk-rejecting papers because authors forgot to remove their identity from the metadata. Getting a paper rejected is tough, but it's even worse when it's rejected before review due to a small oversight like this.
+
+Why hasn’t a feature been implemented to read file metadata during the upload process and alert authors? A metadata check during submission isn’t rocket science and could save both authors and reviewers time and effort. Automated checks should be in place to prevent these issues. It's unfair for authors to miss out on publication opportunities just because they forgot to anonymize file metadata.
+
+Until such a feature exists, I’ve built this tool to help authors scan and fix metadata before submitting their papers!
+
 ## Prerequisites
 
 - Node.js (version 14 or higher)
