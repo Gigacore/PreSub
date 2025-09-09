@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsc && concurrently \"vite\" \"cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && cp dist-main/*.js dist/",
     "dist": "pnpm build && electron-builder",
     "test": "playwright test"
   },

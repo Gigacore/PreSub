@@ -10,12 +10,17 @@
   },
   "dependencies": {
     "jszip": "^3.10.1",
+    "pako": "^1.0.11",
     "xml2js": "^0.6.2",
-    "xml-js": "^1.6.11"
+    "xml-js": "^1.6.11",
+    "setimmediate": "^1.0.5",
+    "xmlbuilder": "^15.1.1",
+    "sax": "^1.4.1"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
     "@types/jszip": "^3.4.1",
+    "@types/pako": "^2.0.3",
     "@types/xml2js": "^0.4.11",
     "@types/xml-js": "^1.0.0",
     "typescript": "^5.0.0",
