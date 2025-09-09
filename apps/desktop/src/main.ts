@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { analyzeFile, sanitizeFile } from 'core';
@@ -14,6 +14,18 @@ ipcMain.handle('core:analyze', async (event, filePath) => {
 ipcMain.handle('core:sanitize', async (event, filePath) => {
   const buffer = await fs.readFile(filePath);
   return sanitizeFile(new Uint8Array(buffer));
+});
+
+ipcMain.handle('dialog:openFile', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Documents', extensions: ['docx'] }],
+  });
+  if (canceled) {
+    return null;
+  } else {
+    return filePaths[0];
+  }
 });
 
 function createWindow() {
