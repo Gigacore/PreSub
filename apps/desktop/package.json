@@ -10,9 +10,6 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/material": "^7.3.2",
     "core": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
