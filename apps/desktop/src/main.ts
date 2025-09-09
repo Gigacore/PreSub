@@ -4,13 +4,16 @@ import fs from 'fs/promises';
 import { analyzeFile, sanitizeFile } from 'core';
 
 ipcMain.handle('core:analyze', async (event, filePath) => {
+  if (!filePath || typeof filePath !== 'string') {
+    return null;
+  }
   const buffer = await fs.readFile(filePath);
-  return analyzeFile(buffer);
+  return analyzeFile(new Uint8Array(buffer));
 });
 
 ipcMain.handle('core:sanitize', async (event, filePath) => {
   const buffer = await fs.readFile(filePath);
-  return sanitizeFile(buffer);
+  return sanitizeFile(new Uint8Array(buffer));
 });
 
 function createWindow() {
@@ -34,6 +37,12 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../index.html'));
   }
 }
+
+// Handle the 'open-file' event on macOS
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  console.log(`File open event for path: ${path}. App will ignore it.`);
+});
 
 app.whenReady().then(() => {
   createWindow();

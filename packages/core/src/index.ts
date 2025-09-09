@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
-import { parseStringPromise } from 'xml2js';
-import { js2xml } from 'xml-js';
+import * as xml2js from 'xml2js';
+import * as xmljs from 'xml-js';
 
 export interface AnalysisResult {
   critical: { id: string; description: string; value: string }[];
@@ -23,7 +23,7 @@ export async function analyzeFile(buf: Uint8Array, mime?: string, name?:string):
     const corePropsXml = await zip.file('docProps/core.xml')?.async('string');
 
     if (corePropsXml) {
-      const coreProps = await parseStringPromise(corePropsXml, {
+      const coreProps = await xml2js.parseStringPromise(corePropsXml, {
         explicitArray: false,
         tagNameProcessors: [tag => tag.replace('cp:', '')],
       });
@@ -65,7 +65,7 @@ export async function sanitizeFile(buf: Uint8Array, opts?: any): Promise<Uint8Ar
     const corePropsXml = await zip.file(corePropsXmlPath)?.async('string');
 
     if (corePropsXml) {
-      const coreProps = await parseStringPromise(corePropsXml, {
+      const coreProps = await xml2js.parseStringPromise(corePropsXml, {
         explicitArray: false,
         tagNameProcessors: [tag => tag.replace('cp:', '')],
       });
@@ -84,7 +84,7 @@ export async function sanitizeFile(buf: Uint8Array, opts?: any): Promise<Uint8Ar
         compact: true,
         spaces: 2,
       };
-      const newCorePropsXml = js2xml(coreProps, builderOptions);
+      const newCorePropsXml = xmljs.js2xml(coreProps, builderOptions);
       zip.file(corePropsXmlPath, newCorePropsXml);
     }
 
