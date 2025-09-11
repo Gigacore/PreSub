@@ -5,7 +5,7 @@ function Header() {
         <img
           src={import.meta.env.BASE_URL + 'assets/presub-logo.png'}
           alt="PreSub logo"
-          className="mx-auto h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
+          className="mx-auto h-20 sm:h-24 md:h-28 lg:h-32 w-auto"
           loading="eager"
           decoding="async"
         />

@@ -226,7 +226,38 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
     }
 
     const result = await mammoth.extractRawText({ arrayBuffer });
-    processedFile.metadata.wordCount = result.value.split(/\s+/).length;
+    const rawText = result.value || '';
+    processedFile.metadata.wordCount = rawText.split(/\s+/).filter(Boolean).length;
+
+    // Scan the extracted text for emails and URLs.
+    try {
+      const emails = new Set<string>();
+      const urls = new Set<string>();
+      scanTextForEmailsAndUrls(rawText, (value, kind) => {
+        if (kind === 'email') emails.add(value);
+        else urls.add(value);
+      });
+
+      const emailList = Array.from(emails.keys());
+      const urlList = Array.from(urls.keys());
+
+      if (emailList.length) {
+        processedFile.metadata.emailsFound = emailList;
+      }
+      if (urlList.length) {
+        processedFile.metadata.urlsFound = urlList;
+      }
+
+      if (emailList.length || urlList.length) {
+        // Word pages are not available from text extraction; default to page 1
+        processedFile.contentFindings = {
+          emails: emailList.map((e) => ({ value: e, pages: [1] })),
+          urls: urlList.map((u) => ({ value: u, pages: [1] })),
+        };
+      }
+    } catch (e) {
+      console.warn('DOCX content scan skipped:', e);
+    }
   } catch (e) {
     console.error('Error parsing docx:', e);
     processedFile.metadata.error = 'Could not parse .docx file (only .docx supported)';
