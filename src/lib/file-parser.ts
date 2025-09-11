@@ -152,8 +152,14 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
         },
       };
     case 'xlsx':
-    case 'xls':
       return parseXlsx(file);
+    case 'xls':
+      return {
+        fileName: file.name,
+        metadata: {
+          error: 'Legacy .xls format not supported. Please convert to .xlsx.',
+        },
+      };
     case 'pptx':
       return parsePptx(file);
     case 'ppt':

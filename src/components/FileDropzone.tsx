@@ -1,24 +1,37 @@
 import { useDropzone } from 'react-dropzone';
+import { useState } from 'react';
 
 interface FileDropzoneProps {
   onFilesSelected: (files: File[]) => void;
 }
 
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
+  const [message, setMessage] = useState<string | null>(null);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: onFilesSelected,
+    onDrop: (accepted) => {
+      setMessage(null);
+      onFilesSelected(accepted);
+    },
+    onDropRejected: (rejections) => {
+      const legacy = rejections
+        .map((r) => r.file.name.toLowerCase())
+        .filter((name) => name.endsWith('.doc') || name.endsWith('.ppt') || name.endsWith('.xls'));
+      if (legacy.length > 0) {
+        setMessage('Legacy formats (.doc, .ppt, .xls) are not supported. Please convert to .docx, .pptx, or .xlsx.');
+      } else {
+        setMessage('Some files were rejected due to type restrictions.');
+      }
+    },
     accept: {
       'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-powerpoint': ['.ppt'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     },
   });
 
   return (
+    <>
     <div
       {...getRootProps()}
       className={`border-2 border-dashed rounded-lg p-16 text-center cursor-pointer transition-colors
@@ -74,6 +87,12 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
         </div>
       </div>
     </div>
+    {message && (
+      <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
+        <p className="font-semibold">{message}</p>
+      </div>
+    )}
+    </>
   );
 }
 
