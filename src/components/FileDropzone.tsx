@@ -7,9 +7,13 @@ interface FileDropzoneProps {
 
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const [message, setMessage] = useState<string | null>(null);
+  const [hasDropped, setHasDropped] = useState(false);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
       setMessage(null);
+      if (accepted && accepted.length > 0) {
+        setHasDropped(true);
+      }
       onFilesSelected(accepted);
     },
     onDropRejected: (rejections) => {
@@ -63,6 +67,11 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       </div>
       {message && (
         <p className="-mt-6 mb-8 text-sm text-red-600 text-center" role="alert">{message}</p>
+      )}
+      {hasDropped && (
+        <div className="-mt-5 mb-8 text-center text-gray-500 text-[11px] sm:text-xs" aria-live="polite">
+          PreSub can make mistakes — please double-check important information.
+        </div>
       )}
     </>
   );
