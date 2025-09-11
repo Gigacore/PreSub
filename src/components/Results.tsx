@@ -1,4 +1,4 @@
-import { ProcessedFile } from '../App';
+import type { ProcessedFile } from '../App';
 import ResultItem from './ResultItem';
 
 interface ResultsProps {

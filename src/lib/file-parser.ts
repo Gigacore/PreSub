@@ -1,7 +1,7 @@
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-import { ProcessedFile } from '../App';
+import type { ProcessedFile } from '../App';
 
 // It's important to set the worker source for pdfjs-dist
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;

@@ -11,7 +11,7 @@ export interface ProcessedFile {
     value: string;
   };
   metadata: {
-    [key: string]: any;
+    [key: string]: string | number | boolean | null | undefined;
   };
 }
 

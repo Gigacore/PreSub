@@ -11,6 +11,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
     "mammoth": "^1.10.0",
     "pdfjs-dist": "^5.4.149",
     "react": "^19.1.1",

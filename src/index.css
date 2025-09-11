@@ -1,3 +1,2 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Use Tailwind v4 default theme + layers */
+@import "tailwindcss";
