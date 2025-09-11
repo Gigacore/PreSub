@@ -71,11 +71,11 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
     const urlList = Array.from(urlPages.keys());
     if (emailList.length) {
       processedFile.metadata.emailsFound = emailList;
-      issues.push({ type: 'EMAIL IN CONTENT', value: previewList(new Set(emailList)) });
+      // Do not add to potentialIssues; show as info banner instead
     }
     if (urlList.length) {
       processedFile.metadata.urlsFound = urlList;
-      issues.push({ type: 'URL IN CONTENT', value: previewList(new Set(urlList)) });
+      // Do not add to potentialIssues; show as info banner instead
     }
 
     // Detailed findings with page numbers

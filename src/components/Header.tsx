@@ -11,7 +11,7 @@ function Header() {
         />
       </h1>
       <p className="text-base sm:text-lg mt-2 text-gray-600 max-w-2xl mx-auto px-2">
-        Scan your documents locally for metadata anonymity before submission.
+        Scan your documents locally for anonymity before submission.
       </p>
     </header>
   );
