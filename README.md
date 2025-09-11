@@ -1,84 +1,49 @@
-# React + TypeScript + Vite
+# PreSub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PreSub helps you scan documents locally for identifying anonymity issues before you submit or share them. It highlights authoring details like Author, Creator, and Last Modified By, along with other useful properties such as page/slide counts and creation/modification dates — all processed in your browser with no uploads.
 
-Currently, two official plugins are available:
+All file parsing runs entirely on your device. No files or metadata leave your browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**Capabilities**
+- **Local-only processing**: No files or metadata are sent to a server.
+- **Issue highlighting**: Flags common anonymity risks — Author, Creator, Last Modified By.
+- **Rich metadata**: Extracts counts (pages, slides, sheets, word count), dates, titles, subjects, software, company, and more when available.
+- **Multiple formats**: Works with PDFs, Office (Word, Excel, PowerPoint), and common image formats.
+- **Batch support**: Drop multiple files and review results together; clear results anytime.
 
-## Expanding the ESLint configuration
+**Supported Formats**
+- **PDF**: page count, Title, Author, Subject, Creator, Producer, Creation/Modification dates.
+- **DOCX** (Word): author, creator, lastModifiedBy, wordCount, title, subject, description, keywords, category, creation/modification dates, company/manager/application where available.
+- **XLSX** (Excel): sheet names/count, Title, Author, Subject, Creator, Company, Last Modified By, Creation/Modification dates.
+- **PPTX** (PowerPoint): author, creator, lastModifiedBy, slides, title, dates, and related app metadata.
+- **Images**: JPEG, PNG, SVG, TIFF — parses EXIF/XMP/text chunks to surface author/creator, title, description, software, copyright, and dates when present.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**How It Works**
+- **Dropzone UI**: Drag-and-drop or click to select files; supported types are listed and legacy formats are rejected with guidance.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**What it does not do**: PreSub does not edit or scrub files; it only reports what it finds so you can fix issues using your preferred tools.
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+**Privacy & Security**
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Limitations**
+- **Read-only**: PreSub reports metadata but does not modify files.
+- **Coverage**: Metadata availability varies by file and toolchain; some fields may be missing or stored in proprietary places.
+- **Legacy formats**: `.doc`, `.xls`, `.ppt` are not parsed; convert to modern formats first.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Tech Stack**
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Parsing**: `pdfjs-dist`, `mammoth`, `xlsx`, `jszip`, `exifreader`
+- **UX**: `react-dropzone`
+- **PWA**: `vite-plugin-pwa`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Contributing
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Contributions are welcome! If you have suggestions or improvements, please create a pull request or open an issue in the repository.
 
-## Install As An App (PWA)
+## License
 
-This project is PWA-enabled via `vite-plugin-pwa`, so you can install it like a native app on desktop browsers.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-- Build and preview:
-  - `npm run build`
-  - `npm run preview` (opens at `http://localhost:4173`)
-- In the browser, use the install option:
-  - Chrome/Edge: click the Install icon in the address bar or use the menu → Install app.
-  - Safari (macOS): File → Add to Dock (requires HTTPS).
+## Disclaimer
 
-Notes:
-- The PWA manifest currently uses a local SVG icon (`public/vite.svg`) which works well for desktop installs. For Android/iOS homescreen support, it's recommended to add PNG icons at 192x192 and 512x512 and reference them in `vite.config.ts`.
-- Service worker updates are automatic (`registerType: 'autoUpdate'`).
+This tool provides basic metadata checks, authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.
