@@ -23,8 +23,6 @@ All file parsing runs entirely on your device. No files or metadata leave your b
 
 **What it does not do**: PreSub does not edit or scrub files; it only reports what it finds so you can fix issues using your preferred tools.
 
-**Privacy & Security**
-
 **Limitations**
 - **Read-only**: PreSub reports metadata but does not modify files.
 - **Coverage**: Metadata availability varies by file and toolchain; some fields may be missing or stored in proprietary places.
