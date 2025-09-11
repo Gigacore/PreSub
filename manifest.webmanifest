@@ -1,0 +1,19 @@
+{
+  "name": "PreSub",
+  "short_name": "PreSub",
+  "description": "Scan documents for anonymity before submission.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "lang": "en",
+  "scope": "/PreSub/",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
