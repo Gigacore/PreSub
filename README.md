@@ -1,6 +1,5 @@
-<p align="center">
-  <img src="assets/presub-logo.png" alt="PreSub" width="520" />
-</p>
+
+<img width="877" height="321" alt="presub" src="https://github.com/user-attachments/assets/59aeedb3-ed22-4eeb-9ad9-12f7ee9ce879" />
 
 PreSub helps you scan documents locally for identifying anonymity issues before you submit or share them. It highlights authoring details like Author, Creator, and Last Modified By, along with other useful properties such as page/slide counts and creation/modification dates — all processed in your browser with no uploads.
 
