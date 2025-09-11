@@ -16,8 +16,8 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       manifest: {
-        name: 'Manuscript Anonymity Scanner',
-        short_name: 'AnonScan',
+        name: 'PreSub',
+        short_name: 'PreSub',
         description: 'Scan documents for anonymity before submission.',
         display: 'standalone',
         background_color: '#ffffff',
