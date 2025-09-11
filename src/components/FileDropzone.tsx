@@ -27,6 +27,10 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/svg+xml': ['.svg'],
+      'image/tiff': ['.tif', '.tiff'],
     },
   });
 
@@ -83,6 +87,9 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
           </span>
           <span className="inline-block bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
             PowerPoint
+          </span>
+          <span className="inline-block bg-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
+            Images
           </span>
         </div>
       </div>

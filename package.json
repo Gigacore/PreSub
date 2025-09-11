@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.13",
+    "exifreader": "^4.31.2",
     "jszip": "^3.10.1",
     "mammoth": "^1.10.0",
     "pdfjs-dist": "^5.4.149",

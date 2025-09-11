@@ -42,7 +42,7 @@ describe('file-parser', () => {
     file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(0));
     const result = await parseFile(file);
     expect(result.fileName).toBe('test.pdf');
-    expect(result.potentialIssue?.value).toBe('Test Author');
+    expect(result.potentialIssues?.[0].value).toBe('Test Author');
     expect(result.metadata.pages).toBe(10);
     expect(result.metadata.title).toBe('Test Title');
   });
@@ -60,7 +60,7 @@ describe('file-parser', () => {
     file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(0));
     const result = await parseFile(file);
     expect(result.fileName).toBe('test.xlsx');
-    expect(result.potentialIssue?.value).toBe('Test Author');
+    expect(result.potentialIssues?.[0].value).toBe('Test Author');
     expect(result.metadata.title).toBe('Test Title');
   });
 

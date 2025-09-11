@@ -1798,6 +1798,11 @@
   resolved "https://registry.npmjs.org/@xmldom/xmldom/-/xmldom-0.8.11.tgz"
   integrity sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==
 
+"@xmldom/xmldom@^0.9.4":
+  version "0.9.8"
+  resolved "https://registry.npmjs.org/@xmldom/xmldom/-/xmldom-0.9.8.tgz"
+  integrity sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A==
+
 acorn-jsx@^5.3.2:
   version "5.3.2"
   resolved "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-5.3.2.tgz"
@@ -2586,6 +2591,13 @@ esutils@^2.0.2:
   version "2.0.3"
   resolved "https://registry.npmjs.org/esutils/-/esutils-2.0.3.tgz"
   integrity sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==
+
+exifreader@^4.31.2:
+  version "4.31.2"
+  resolved "https://registry.npmjs.org/exifreader/-/exifreader-4.31.2.tgz"
+  integrity sha512-1NwFxGzoVyDDXpT4pw/gqQ10domJPOJFQHNhw7I4/qJZq1Rln0OlE7bfZLTM1gfxahvVV/pe9Dvsscda8h+27g==
+  optionalDependencies:
+    "@xmldom/xmldom" "^0.9.4"
 
 expect-type@^1.2.1:
   version "1.2.2"
