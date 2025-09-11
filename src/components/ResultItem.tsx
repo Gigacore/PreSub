@@ -10,6 +10,21 @@ function formatLabel(key: string) {
     .toUpperCase();
 }
 
+function formatValue(value: unknown) {
+  if (value === null || value === undefined) return '-';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : '-';
+  }
+  return String(value);
+}
+
+function isNonEmpty(value: unknown) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+}
+
 function ResultItem({ result }: ResultItemProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -34,8 +49,8 @@ function ResultItem({ result }: ResultItemProps) {
         </h2>
       </div>
 
-      {/* Potential Issue */}
-      {result.potentialIssue && (
+      {/* Potential Issues */}
+      {!!result.potentialIssues?.length && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-6">
           <div className="flex">
             <div className="py-1">
@@ -52,8 +67,14 @@ function ResultItem({ result }: ResultItemProps) {
               </svg>
             </div>
             <div>
-              <p className="font-bold">{result.potentialIssue.type}</p>
-              <p className="text-sm">{result.potentialIssue.value}</p>
+              <p className="font-bold">Potential issues detected:</p>
+              <ul className="text-sm list-disc ml-5">
+                {result.potentialIssues.map((iss, idx) => (
+                  <li key={idx}>
+                    <span className="font-semibold">{iss.type}</span>: {iss.value}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
@@ -61,12 +82,73 @@ function ResultItem({ result }: ResultItemProps) {
 
       {/* Metadata Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-        {Object.entries(result.metadata).map(([key, value]) => (
-          <div key={key} className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-gray-500 font-semibold">{formatLabel(key)}</p>
-            <p className="text-gray-800">{String(value)}</p>
-          </div>
-        ))}
+        {(() => {
+          const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
+          const countKeys: string[] = ['wordCount', 'words', 'slides', 'pages', 'numberOfSheets'];
+          const dateKeys: string[] = ['creationDate', 'modificationDate'];
+
+          const entries = Object.entries(result.metadata);
+          const keyIn = (k: string) => Object.prototype.hasOwnProperty.call(result.metadata, k);
+
+          const restEntries = entries.filter(
+            ([k]) => !priorityKeys.includes(k) && !countKeys.includes(k) && !dateKeys.includes(k)
+          );
+
+          return (
+            <>
+              {/* Priority fields on top, always shown */}
+              {priorityKeys.map((key) => {
+                const value = (result.metadata as any)[key];
+                const isHighlight = (key === 'author' || key === 'creator' || key === 'lastModifiedBy') && isNonEmpty(value);
+                return (
+                  <div
+                    key={`priority-${key}`}
+                    className={`bg-gray-50 p-4 rounded-lg ${isHighlight ? 'border-2 border-dotted border-red-400' : ''}`}
+                  >
+                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800">{formatValue(value)}</p>
+                  </div>
+                );
+              })}
+
+              {/* Count-like fields next (if present) */}
+              {countKeys.filter(keyIn).map((key) => {
+                const value = (result.metadata as any)[key];
+                return (
+                  <div key={`count-${key}`} className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800">{formatValue(value)}</p>
+                  </div>
+                );
+              })}
+
+              {/* Date fields next (if present) */}
+              {dateKeys.filter(keyIn).map((key) => {
+                const value = (result.metadata as any)[key];
+                return (
+                  <div key={`date-${key}`} className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800">{formatValue(value)}</p>
+                  </div>
+                );
+              })}
+
+              {/* Remaining metadata fields */}
+              {restEntries.map(([key, value]) => {
+                const isHighlight = (key === 'author' || key === 'creator' || key === 'lastModifiedBy') && isNonEmpty(value);
+                return (
+                  <div
+                    key={key}
+                    className={`bg-gray-50 p-4 rounded-lg ${isHighlight ? 'border-2 border-dotted border-red-400' : ''}`}
+                  >
+                    <p className="text-gray-500 font-semibold">{formatLabel(key)}</p>
+                    <p className="text-gray-800">{formatValue(value)}</p>
+                  </div>
+                );
+              })}
+            </>
+          );
+        })()}
       </div>
     </div>
   );

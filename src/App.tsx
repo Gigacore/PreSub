@@ -6,10 +6,10 @@ import { parseFile } from './lib/file-parser';
 
 export interface ProcessedFile {
   fileName: string;
-  potentialIssue?: {
+  potentialIssues?: Array<{
     type: string;
     value: string;
-  };
+  }>;
   metadata: {
     [key: string]: string | number | boolean | null | undefined;
   };

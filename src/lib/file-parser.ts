@@ -21,12 +21,17 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
 
   if (metadata.info) {
     const info = metadata.info as any; // pdfjs-dist types are not perfect
-    if (info.Author) {
-      processedFile.potentialIssue = {
-        type: 'POTENTIAL ISSUE: AUTHOR FOUND',
-        value: info.Author,
-      };
+    const author = typeof info.Author === 'string' ? info.Author.trim() : '';
+    const creator = typeof info.Creator === 'string' ? info.Creator.trim() : '';
+
+    const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+    if (author) {
+      issues.push({ type: 'AUTHOR FOUND', value: author });
     }
+    if (creator) {
+      issues.push({ type: 'CREATOR FOUND', value: creator });
+    }
+    if (issues.length) processedFile.potentialIssues = issues;
     processedFile.metadata.title = info.Title;
     processedFile.metadata.author = info.Author;
     processedFile.metadata.subject = info.Subject;
@@ -53,13 +58,14 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
     try {
       const meta = await extractOOXMLMetadata(arrayBuffer);
       Object.assign(processedFile.metadata, meta);
-      const author = (meta.author || meta.creator) as string | undefined;
-      if (author) {
-        processedFile.potentialIssue = {
-          type: 'POTENTIAL ISSUE: AUTHOR FOUND',
-          value: author,
-        };
-      }
+      const author = typeof meta.author === 'string' ? meta.author.trim() : '';
+      const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
+      const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
+      const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+      if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+      if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+      if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+      if (issues.length) processedFile.potentialIssues = issues;
     } catch (e) {
       // Ignore metadata errors for docx; continue with text extraction
       console.warn('DOCX metadata extraction skipped:', e);
@@ -90,12 +96,15 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
   };
 
   if (props) {
-    if (props.Author) {
-      processedFile.potentialIssue = {
-        type: 'POTENTIAL ISSUE: AUTHOR FOUND',
-        value: props.Author,
-      };
-    }
+    const author = typeof props.Author === 'string' ? props.Author.trim() : '';
+    const creator = typeof (props as any).Creator === 'string' ? (props as any).Creator.trim() : '';
+    const lastModifiedBy = typeof (props as any).LastAuthor === 'string' ? (props as any).LastAuthor.trim() : '';
+
+    const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+    if (issues.length) processedFile.potentialIssues = issues;
     processedFile.metadata.title = props.Title;
     processedFile.metadata.author = props.Author;
     processedFile.metadata.subject = props.Subject;
@@ -121,13 +130,14 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
   try {
     const meta = await extractOOXMLMetadata(arrayBuffer);
     Object.assign(processedFile.metadata, meta);
-    const author = (meta.author || meta.creator) as string | undefined;
-    if (author) {
-      processedFile.potentialIssue = {
-        type: 'POTENTIAL ISSUE: AUTHOR FOUND',
-        value: author,
-      };
-    }
+    const author = typeof meta.author === 'string' ? meta.author.trim() : '';
+    const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
+    const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
+    const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+    if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('PPTX metadata extraction failed:', e);
     processedFile.metadata.note = 'Could not extract .pptx metadata';
