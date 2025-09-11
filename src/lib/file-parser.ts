@@ -81,30 +81,95 @@ function scanTextForEmailsAndUrls(
   emails: Set<string>,
   urls: Set<string>
 ) {
-  // Basic email detection
-  const emailRe = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-  // URL detection: http/https, www., and bare domains (simple heuristic)
+  // Normalize spaces around URL punctuation sometimes introduced by PDF extraction
+  const normalizeForUrlScan = (s: string) => {
+    let out = s;
+    // Rejoin protocol separators like 'http : / /' → 'http://'
+    out = out.replace(/(https?|ftp)\s*:\s*\/\s*\//gi, '$1://');
+    // Tighten spaces around colons after scheme
+    out = out.replace(/\b(https?|ftp)\s*:\s*/gi, '$1:');
+    // Collapse spaces around dots within tokens: 'edition . cnn . com' → 'edition.cnn.com'
+    out = out.replace(/([A-Za-z0-9%~_+\-])\s*\.\s*([A-Za-z0-9%~_+\-])/g, '$1.$2');
+    // Collapse spaces around slashes: '/ reports / docs ' → '/reports/docs'
+    out = out.replace(/([A-Za-z0-9%~_+\-.])\s*\/\s*([A-Za-z0-9%~_+\-.])/g, '$1/$2');
+    // Remove spaces around query/fragment separators
+    out = out.replace(/\?\s*/g, '?');
+    out = out.replace(/&\s*/g, '&');
+    out = out.replace(/=\s*/g, '=');
+    out = out.replace(/#\s*/g, '#');
+    return out;
+  };
+
+  const source = normalizeForUrlScan(text);
+
+  // Improved email detection (common RFC-like, pragmatic)
+  const emailRe = /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63})/gi;
+  const emailCheck = new RegExp(emailRe.source, 'i');
+
+  // URL detection: protocol, www., and bare domains
   const urlPatterns: RegExp[] = [
-    /https?:\/\/[^\s<>")]+/gi,
-    /\bwww\.[^\s<>")]+/gi,
-    /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,})(?:\/[\w#%&+@;.,:!\-?_~]*)?/gi,
+    /(https?:\/\/|ftp:\/\/)[^\s<>"'`{}|\\^\[\]]+/gi,
+    /\bwww\.[A-Za-z0-9.-]+(?:\/[^^\s<>"'`{}|\\\[\]]*)?/gi,
+    /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63})(?:\/[^^\s<>"'`{}|\\\[\]]*)?/gi,
   ];
 
-  const trailing = /[)\]\}>,.;:!?]+$/;
-  const normalise = (s: string) => s.replace(trailing, '').trim();
+  const stripTrailing = (s: string) => {
+    let out = s.trim();
+    // Remove unmatched closing parentheses and trailing punctuation
+    const count = (r: RegExp) => (out.match(r)?.length ?? 0);
+    while (out.length) {
+      const last = out[out.length - 1];
+      if (last === ')') {
+        const l = count(/\(/g);
+        const r = count(/\)/g);
+        if (r > l) { out = out.slice(0, -1); continue; }
+      }
+      if (/[.,;:!?…'"”’›»)\]]/.test(last)) { out = out.slice(0, -1); continue; }
+      break;
+    }
+    return out;
+  };
 
   let m: RegExpExecArray | null;
-  while ((m = emailRe.exec(text)) !== null) {
-    emails.add(normalise(m[0]));
+  while ((m = emailRe.exec(source)) !== null) {
+    emails.add(stripTrailing(m[0]));
   }
+
+  const tldAllow = [
+    'com','org','net','edu','gov','mil','int','io','co','me','ai','app','dev','tech','xyz','info','biz','online','site','shop','blog','news','art','tv','fm','gg','ly','to','la',
+    'us','uk','de','fr','es','it','nl','be','at','ch','se','no','fi','dk','pl','cz','sk','hu','ro','bg','gr','pt','ie','is','tr','ru','ua','by','kz',
+    'ca','mx','br','ar','cl','pe','uy','au','nz','za','in','sg','hk','tw','jp','kr','cn','vn','th','my','id','ph','sa','ae','qa','kw','bh','om','il'
+  ];
+  const tldGroup = tldAllow.join('|');
+  const extractUrl = (s: string) => {
+    const m = s.match(new RegExp(
+      `^(?:(?:https?:\\/\\/|ftp:\\/\\/\\/)|(?:www\\.))?[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.(?:${tldGroup})(?:\\/[^\\s<>"'\
+` + "`{}|\\\\\\[\\\\\\]]*)?", 'i'));
+    return m ? m[0] : null;
+  };
 
   for (const re of urlPatterns) {
     let um: RegExpExecArray | null;
-    while ((um = re.exec(text)) !== null) {
-      const raw = normalise(um[0]);
+    while ((um = re.exec(source)) !== null) {
+      const rawTrim = stripTrailing(um[0]);
       // Skip if this looks like an email (already captured)
-      if (/^[^\s@]+@[^\s@]+$/.test(raw)) continue;
-      urls.add(raw);
+      if (emailCheck.test(rawTrim)) continue;
+
+      let extracted = extractUrl(rawTrim);
+      if (!extracted) continue;
+
+      // Require a path for bare domains (no scheme and no www)
+      const isBare = !/^https?:\/\//i.test(extracted) && !/^ftp:\/\//i.test(extracted) && !/^www\./i.test(extracted);
+      if (isBare && !extracted.includes('/')) continue;
+
+      // Trim trailing appended sentence words like ".Deviations" that are not file extensions
+      const lastSlash = extracted.lastIndexOf('/');
+      const tail = extracted.slice(lastSlash + 1);
+      if (/\.[A-Z][a-zA-Z]+$/.test(tail)) {
+        extracted = extracted.slice(0, extracted.lastIndexOf('.'));
+      }
+
+      urls.add(extracted);
     }
   }
 }
