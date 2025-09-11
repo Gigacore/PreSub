@@ -67,3 +67,18 @@ export default tseslint.config([
   },
 ])
 ```
+
+## Install As An App (PWA)
+
+This project is PWA-enabled via `vite-plugin-pwa`, so you can install it like a native app on desktop browsers.
+
+- Build and preview:
+  - `npm run build`
+  - `npm run preview` (opens at `http://localhost:4173`)
+- In the browser, use the install option:
+  - Chrome/Edge: click the Install icon in the address bar or use the menu → Install app.
+  - Safari (macOS): File → Add to Dock (requires HTTPS).
+
+Notes:
+- The PWA manifest currently uses a local SVG icon (`public/vite.svg`) which works well for desktop installs. For Android/iOS homescreen support, it's recommended to add PNG icons at 192x192 and 512x512 and reference them in `vite.config.ts`.
+- Service worker updates are automatic (`registerType: 'autoUpdate'`).
