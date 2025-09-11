@@ -12,10 +12,10 @@ function Results({ results, onClear }: ResultsProps) {
       {results.map((result, index) => (
         <ResultItem key={index} result={result} />
       ))}
-      <div className="text-right">
+      <div className="mt-2 flex justify-start">
         <button
           onClick={onClear}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg"
+          className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-6 rounded-lg transition duration-300"
         >
           Clear Results
         </button>

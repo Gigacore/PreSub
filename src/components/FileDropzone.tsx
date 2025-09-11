@@ -36,69 +36,34 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
 
   return (
     <>
-    <div
-      {...getRootProps()}
-      className={`border-2 border-dashed rounded-lg p-16 text-center cursor-pointer transition-colors
-        ${
+      <div
+        {...getRootProps()}
+        className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer mb-8 transition-colors ${
           isDragActive
             ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+            : 'border-gray-300 bg-gray-100 hover:bg-gray-200'
         }`}
-    >
-      <input {...getInputProps()} />
-      <div className="flex flex-col items-center">
-        <svg
-          className="w-16 h-16 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 16v-4m0 0l-2 2m2-2l2 2"
-          />
-        </svg>
-        <p className="mt-4 text-lg text-gray-600">
-          {isDragActive
-            ? 'Drop the files here ...'
-            : 'Drop files here or click to select'}
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          All processing happens on your device. No data is uploaded.
-        </p>
-        <div className="mt-6 space-x-2">
-          <span className="inline-block bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
-            PDF
-          </span>
-          <span className="inline-block bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
-            Word
-          </span>
-          <span className="inline-block bg-yellow-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
-            Excel
-          </span>
-          <span className="inline-block bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
-            PowerPoint
-          </span>
-          <span className="inline-block bg-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-full">
-            Images
-          </span>
+      >
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center">
+          <span className="material-symbols-outlined text-gray-500" style={{ fontSize: 48 }}>upload_file</span>
+          <p className="mt-4 text-lg font-semibold text-gray-700">
+            {isDragActive ? 'Drop the files here ...' : 'Drop files here or click to select'}
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            All processing happens on your device. No data is uploaded.
+          </p>
+          <div className="flex justify-center flex-wrap gap-4">
+            <button type="button" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">PDF</button>
+            <button type="button" className="bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">Word</button>
+            <button type="button" className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">Excel</button>
+            <button type="button" className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">PowerPoint</button>
+          </div>
         </div>
       </div>
-    </div>
-    {message && (
-      <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
-        <p className="font-semibold">{message}</p>
-      </div>
-    )}
+      {message && (
+        <p className="-mt-6 mb-8 text-sm text-red-600 text-center" role="alert">{message}</p>
+      )}
     </>
   );
 }

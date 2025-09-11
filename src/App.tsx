@@ -45,12 +45,14 @@ function App() {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen font-sans">
-      <main className="container mx-auto max-w-4xl p-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen font-sans p-4 sm:p-6 md:p-8">
+      <main className="mx-auto max-w-6xl">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
           <Header />
           <FileDropzone onFilesSelected={handleFiles} />
-          {isLoading && <p className="text-center mt-4">Processing files...</p>}
+          {isLoading && (
+            <p className="text-center mt-4 text-gray-600">Processing files...</p>
+          )}
           {results.length > 0 && (
             <Results results={results} onClear={clearResults} />
           )}
