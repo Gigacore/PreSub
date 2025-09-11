@@ -114,7 +114,9 @@ function ResultItem({ result }: ResultItemProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {(() => {
             const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
-            const countKeys: string[] = ['wordCount', 'words', 'slides', 'pages', 'numberOfSheets'];
+            // Do not show wordCount, words, or totalTime anywhere
+            const hiddenKeys: string[] = ['wordCount', 'words', 'totalTime'];
+            const countKeys: string[] = ['words', 'slides', 'pages', 'numberOfSheets'];
             const dateKeys: string[] = ['creationDate', 'modificationDate'];
             // Content-derived keys we want to segregate
             const contentKeys: string[] = ['emailsFound', 'urlsFound'];
@@ -127,7 +129,8 @@ function ResultItem({ result }: ResultItemProps) {
                 !priorityKeys.includes(k) &&
                 !countKeys.includes(k) &&
                 !dateKeys.includes(k) &&
-                !contentKeys.includes(k)
+                !contentKeys.includes(k) &&
+                !hiddenKeys.includes(k)
             );
 
             return (
@@ -175,7 +178,7 @@ function ResultItem({ result }: ResultItemProps) {
                 })}
 
                 {/* Count-like fields next (if present) */}
-                {countKeys.filter(keyIn).map((key) => {
+                {countKeys.filter((k) => keyIn(k) && !hiddenKeys.includes(k)).map((key) => {
                   const value = (result.metadata as any)[key];
                   return (
                     <div key={`count-${key}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">

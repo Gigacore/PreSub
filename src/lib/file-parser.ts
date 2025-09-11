@@ -227,7 +227,6 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
 
     const result = await mammoth.extractRawText({ arrayBuffer });
     const rawText = result.value || '';
-    processedFile.metadata.wordCount = rawText.split(/\s+/).filter(Boolean).length;
 
     // Scan the extracted text for emails and URLs.
     try {
@@ -299,6 +298,71 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
     processedFile.metadata.creationDate = (props as any).CreatedDate?.toISOString?.();
     processedFile.metadata.modificationDate = (props as any).ModifiedDate?.toISOString?.();
   }
+  // Content scan: iterate sheets, scan cell text and hyperlinks
+  try {
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
+
+    const sheetNames = workbook.SheetNames;
+    sheetNames.forEach((name, idx) => {
+      const page = idx + 1; // treat sheet index as page number
+      const sheet: any = (workbook as any).Sheets[name];
+      if (!sheet) return;
+
+      // Scan cell values
+      for (const addr of Object.keys(sheet)) {
+        if (addr.startsWith('!')) continue; // skip special keys
+        const cell = sheet[addr];
+        const textVal = (typeof cell?.w === 'string' && cell.w) || (typeof cell?.v === 'string' && cell.v) || '';
+        if (textVal) {
+          scanTextForEmailsAndUrls(String(textVal), (value, kind) => {
+            if (kind === 'email') {
+              if (!emailPages.has(value)) emailPages.set(value, new Set());
+              emailPages.get(value)!.add(page);
+            } else {
+              if (!urlPages.has(value)) urlPages.set(value, new Set());
+              urlPages.get(value)!.add(page);
+            }
+          });
+        }
+
+        // Hyperlinks on cells (SheetJS puts them in cell.l)
+        const link = cell?.l?.Target as string | undefined;
+        if (link) {
+          if (/^mailto:/i.test(link)) {
+            const addr = decodeURIComponent(link.replace(/^mailto:/i, '').split('?')[0]);
+            if (addr) {
+              if (!emailPages.has(addr)) emailPages.set(addr, new Set());
+              emailPages.get(addr)!.add(page);
+            }
+          } else {
+            scanTextForEmailsAndUrls(String(link), (value, kind) => {
+              if (kind === 'email') {
+                if (!emailPages.has(value)) emailPages.set(value, new Set());
+                emailPages.get(value)!.add(page);
+              } else {
+                if (!urlPages.has(value)) urlPages.set(value, new Set());
+                urlPages.get(value)!.add(page);
+              }
+            });
+          }
+        }
+      }
+    });
+
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
+    if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
+    }
+  } catch (e) {
+    console.warn('XLSX content scan skipped:', e);
+  }
 
   return processedFile;
 }
@@ -326,6 +390,93 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
   } catch (e) {
     console.warn('PPTX metadata extraction failed:', e);
     processedFile.metadata.note = 'Could not extract .pptx metadata';
+  }
+  // Content scan: iterate slide XML and slide hyperlink rels
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
+
+    // Collect slide files and sort by slide number
+    const slidePaths = Object.keys(zip.files)
+      .map((k) => {
+        const m = k.match(/^ppt\/slides\/slide(\d+)\.xml$/i);
+        return m ? { path: k, num: Number(m[1]) } : null;
+      })
+      .filter((x): x is { path: string; num: number } => !!x)
+      .sort((a, b) => a.num - b.num);
+
+    for (const { path, num } of slidePaths) {
+      const xml = await safeReadText(zip, path);
+      if (xml) {
+        const doc = parseXml(xml);
+        // Gather visible text from <a:t> runs
+        const nodes = Array.from(doc.getElementsByTagName('*')) as Element[];
+        const texts: string[] = [];
+        for (const el of nodes) {
+          if (el.localName === 't') {
+            const t = (el.textContent || '').trim();
+            if (t) texts.push(t);
+          }
+        }
+        const joined = texts.join(' ');
+        if (joined) {
+          scanTextForEmailsAndUrls(joined, (value, kind) => {
+            if (kind === 'email') {
+              if (!emailPages.has(value)) emailPages.set(value, new Set());
+              emailPages.get(value)!.add(num);
+            } else {
+              if (!urlPages.has(value)) urlPages.set(value, new Set());
+              urlPages.get(value)!.add(num);
+            }
+          });
+        }
+      }
+
+      // Slide-level hyperlink relationships
+      const relPath = path.replace(/slides\/slide(\d+)\.xml$/i, 'slides/_rels/slide$1.xml.rels');
+      const relXml = await safeReadText(zip, relPath);
+      if (relXml) {
+        const doc = parseXml(relXml);
+        const rels = Array.from(doc.getElementsByTagName('Relationship')) as Element[];
+        for (const rel of rels) {
+          const type = rel.getAttribute('Type') || '';
+          if (!/\/hyperlink$/i.test(type)) continue;
+          const target = rel.getAttribute('Target') || '';
+          if (!target) continue;
+          if (/^mailto:/i.test(target)) {
+            const addr = decodeURIComponent(target.replace(/^mailto:/i, '').split('?')[0]);
+            if (addr) {
+              if (!emailPages.has(addr)) emailPages.set(addr, new Set());
+              emailPages.get(addr)!.add(num);
+            }
+          } else {
+            scanTextForEmailsAndUrls(target, (value, kind) => {
+              if (kind === 'email') {
+                if (!emailPages.has(value)) emailPages.set(value, new Set());
+                emailPages.get(value)!.add(num);
+              } else {
+                if (!urlPages.has(value)) urlPages.set(value, new Set());
+                urlPages.get(value)!.add(num);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
+    if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
+    }
+  } catch (e) {
+    console.warn('PPTX content scan skipped:', e);
   }
 
   return processedFile;
