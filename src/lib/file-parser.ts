@@ -1,6 +1,7 @@
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 import type { ProcessedFile } from '../App';
 
 // It's important to set the worker source for pdfjs-dist
@@ -48,11 +49,27 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
   };
 
   try {
+    // Try to extract metadata from OOXML core/app properties
+    try {
+      const meta = await extractOOXMLMetadata(arrayBuffer);
+      Object.assign(processedFile.metadata, meta);
+      const author = (meta.author || meta.creator) as string | undefined;
+      if (author) {
+        processedFile.potentialIssue = {
+          type: 'POTENTIAL ISSUE: AUTHOR FOUND',
+          value: author,
+        };
+      }
+    } catch (e) {
+      // Ignore metadata errors for docx; continue with text extraction
+      console.warn('DOCX metadata extraction skipped:', e);
+    }
+
     const result = await mammoth.extractRawText({ arrayBuffer });
     processedFile.metadata.wordCount = result.value.split(/\s+/).length;
   } catch (e) {
     console.error('Error parsing docx:', e);
-    processedFile.metadata.error = 'Could not parse .docx file';
+    processedFile.metadata.error = 'Could not parse .docx file (only .docx supported)';
   }
 
   return processedFile;
@@ -60,7 +77,8 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
 
 async function parseXlsx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer);
+  // Ensure correct mode when reading ArrayBuffer in the browser
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const props = workbook.Props;
 
   const processedFile: ProcessedFile = {
@@ -92,13 +110,30 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
 }
 
 async function parsePptx(file: File): Promise<ProcessedFile> {
-  return {
+  const arrayBuffer = await file.arrayBuffer();
+  const processedFile: ProcessedFile = {
     fileName: file.name,
     metadata: {
       fileType: 'Microsoft PowerPoint Presentation',
-      note: 'Metadata extraction for PowerPoint files is not yet supported.',
     },
   };
+
+  try {
+    const meta = await extractOOXMLMetadata(arrayBuffer);
+    Object.assign(processedFile.metadata, meta);
+    const author = (meta.author || meta.creator) as string | undefined;
+    if (author) {
+      processedFile.potentialIssue = {
+        type: 'POTENTIAL ISSUE: AUTHOR FOUND',
+        value: author,
+      };
+    }
+  } catch (e) {
+    console.warn('PPTX metadata extraction failed:', e);
+    processedFile.metadata.note = 'Could not extract .pptx metadata';
+  }
+
+  return processedFile;
 }
 
 export async function parseFile(file: File): Promise<ProcessedFile> {
@@ -108,14 +143,26 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
     case 'pdf':
       return parsePdf(file);
     case 'docx':
-    case 'doc':
       return parseDocx(file);
+    case 'doc':
+      return {
+        fileName: file.name,
+        metadata: {
+          error: 'Legacy .doc format not supported. Please convert to .docx.',
+        },
+      };
     case 'xlsx':
     case 'xls':
       return parseXlsx(file);
     case 'pptx':
-    case 'ppt':
       return parsePptx(file);
+    case 'ppt':
+      return {
+        fileName: file.name,
+        metadata: {
+          error: 'Legacy .ppt format not supported. Please convert to .pptx.',
+        },
+      };
     default:
       return {
         fileName: file.name,
@@ -124,4 +171,86 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
         },
       };
   }
+}
+
+// Helpers
+async function extractOOXMLMetadata(arrayBuffer: ArrayBuffer) {
+  const zip = await JSZip.loadAsync(arrayBuffer);
+
+  const coreXml = await safeReadText(zip, 'docProps/core.xml');
+  const appXml = await safeReadText(zip, 'docProps/app.xml');
+
+  const meta: Record<string, string | number | boolean | null | undefined> = {};
+
+  if (coreXml) {
+    const core = parseXml(coreXml);
+    const map = mapByLocalName(core);
+    if (map.title) meta.title = text(map.title);
+    if (map.creator) meta.creator = text(map.creator);
+    if (map.subject) meta.subject = text(map.subject);
+    if (map.description) meta.description = text(map.description);
+    if (map.keywords) meta.keywords = text(map.keywords);
+    if (map.category) meta.category = text(map.category);
+    if (map.lastModifiedBy) meta.lastModifiedBy = text(map.lastModifiedBy);
+    if (map.created) meta.creationDate = toISO(text(map.created));
+    if (map.modified) meta.modificationDate = toISO(text(map.modified));
+    // For consistency with other parsers
+    if (!meta.author && map.creator) meta.author = text(map.creator);
+  }
+
+  if (appXml) {
+    const app = parseXml(appXml);
+    const map = mapByLocalName(app);
+    if (map.Company) meta.company = text(map.Company);
+    if (map.Manager) meta.manager = text(map.Manager);
+    if (map.Application) meta.application = text(map.Application);
+    if (map.AppVersion) meta.appVersion = text(map.AppVersion);
+    if (map.Slides) meta.slides = number(text(map.Slides));
+    if (map.Pages) meta.pages = number(text(map.Pages));
+    if (map.Words) meta.words = number(text(map.Words));
+    if (map.TotalTime) meta.totalTime = number(text(map.TotalTime));
+  }
+
+  return meta;
+}
+
+async function safeReadText(zip: JSZip, path: string) {
+  const file = zip.file(path);
+  if (!file) return null;
+  try {
+    return await file.async('text');
+  } catch {
+    return null;
+  }
+}
+
+function parseXml(xml: string) {
+  const parser = new DOMParser();
+  return parser.parseFromString(xml, 'application/xml');
+}
+
+function mapByLocalName(doc: Document) {
+  const nodes = doc.getElementsByTagName('*');
+  const map: Record<string, Element> = {};
+  for (let i = 0; i < nodes.length; i++) {
+    const el = nodes[i] as Element;
+    const key = el.localName; // ignore namespaces
+    if (!(key in map)) map[key] = el;
+  }
+  return map as Record<string, Element> & { [k: string]: Element };
+}
+
+function text(el?: Element) {
+  return el ? (el.textContent || '').trim() : '';
+}
+
+function toISO(value: string | undefined) {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
+function number(value: string | undefined) {
+  const n = value ? Number(value) : NaN;
+  return isNaN(n) ? undefined : n;
 }
