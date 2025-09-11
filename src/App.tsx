@@ -14,6 +14,10 @@ export interface ProcessedFile {
   metadata: {
     [key: string]: string | number | boolean | string[] | null | undefined;
   };
+  contentFindings?: {
+    emails: Array<{ value: string; pages: number[] }>;
+    urls: Array<{ value: string; pages: number[] }>;
+  };
 }
 
 function App() {

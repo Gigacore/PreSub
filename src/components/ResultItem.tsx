@@ -135,18 +135,54 @@ function ResultItem({ result }: ResultItemProps) {
 
       {/* Content Findings Section */}
       {(() => {
-        const emails = (result.metadata as any).emailsFound as string[] | undefined;
-        const urls = (result.metadata as any).urlsFound as string[] | undefined;
-        if (!emails && !urls) return null;
+        const cf = result.contentFindings;
+        const hasCF = cf && ((cf.emails?.length ?? 0) > 0 || (cf.urls?.length ?? 0) > 0);
+        const legacyEmails = (result.metadata as any).emailsFound as string[] | undefined;
+        const legacyUrls = (result.metadata as any).urlsFound as string[] | undefined;
+
+        if (hasCF) {
+          const rows = [
+            ...(cf!.emails || []).map((e) => ({ type: 'Email', value: e.value, pages: e.pages })),
+            ...(cf!.urls || []).map((u) => ({ type: 'URL', value: u.value, pages: u.pages })),
+          ];
+          return (
+            <div className="mb-2">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Content Findings</h3>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Pages</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {rows.map((r, i) => (
+                      <tr key={i}>
+                        <td className="px-4 py-2 text-xs text-gray-800 whitespace-nowrap">{r.type}</td>
+                        <td className="px-4 py-2 text-xs text-blue-700 break-all">{r.value}</td>
+                        <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{r.pages.join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        }
+
+        // Fallback to legacy chips if page data isn't available
+        if (!legacyEmails && !legacyUrls) return null;
         return (
           <div className="mb-2">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Content Findings</h3>
             <div className="space-y-4">
-              {!!emails?.length && (
+              {!!legacyEmails?.length && (
                 <div className="w-full bg-yellow-50 p-4 rounded-xl border border-yellow-200">
                   <p className="text-yellow-800 font-semibold text-xs sm:text-sm mb-2">Emails Found</p>
                   <div className="flex flex-wrap gap-2">
-                    {emails.map((e, i) => (
+                    {legacyEmails.map((e, i) => (
                       <span key={i} className="text-xs sm:text-sm bg-white text-yellow-800 border border-yellow-200 rounded-md px-2 py-1 break-all">
                         {e}
                       </span>
@@ -154,11 +190,11 @@ function ResultItem({ result }: ResultItemProps) {
                   </div>
                 </div>
               )}
-              {!!urls?.length && (
+              {!!legacyUrls?.length && (
                 <div className="w-full bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <p className="text-blue-800 font-semibold text-xs sm:text-sm mb-2">URLs Found</p>
                   <div className="flex flex-wrap gap-2">
-                    {urls.map((u, i) => (
+                    {legacyUrls.map((u, i) => (
                       <span key={i} className="text-xs sm:text-sm bg-white text-blue-800 border border-blue-200 rounded-md px-2 py-1 break-all">
                         {u}
                       </span>

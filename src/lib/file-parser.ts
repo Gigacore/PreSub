@@ -43,10 +43,10 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
     processedFile.metadata.modificationDate = info.ModDate;
   }
 
-  // Extract textual content to scan for emails and URLs
+  // Extract textual content to scan for emails and URLs (with page numbers)
   try {
-    const emails = new Set<string>();
-    const urls = new Set<string>();
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
 
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -55,16 +55,35 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
         .map((it: any) => (typeof it.str === 'string' ? it.str : ''))
         .join(' ');
 
-      scanTextForEmailsAndUrls(text, emails, urls);
+      scanTextForEmailsAndUrls(text, (value, kind) => {
+        if (kind === 'email') {
+          if (!emailPages.has(value)) emailPages.set(value, new Set());
+          emailPages.get(value)!.add(p);
+        } else {
+          if (!urlPages.has(value)) urlPages.set(value, new Set());
+          urlPages.get(value)!.add(p);
+        }
+      });
     }
 
-    if (emails.size) {
-      processedFile.metadata.emailsFound = Array.from(emails);
-      issues.push({ type: 'EMAIL IN CONTENT', value: previewList(emails) });
+    // Summaries for metadata (backwards compatibility)
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) {
+      processedFile.metadata.emailsFound = emailList;
+      issues.push({ type: 'EMAIL IN CONTENT', value: previewList(new Set(emailList)) });
     }
-    if (urls.size) {
-      processedFile.metadata.urlsFound = Array.from(urls);
-      issues.push({ type: 'URL IN CONTENT', value: previewList(urls) });
+    if (urlList.length) {
+      processedFile.metadata.urlsFound = urlList;
+      issues.push({ type: 'URL IN CONTENT', value: previewList(new Set(urlList)) });
+    }
+
+    // Detailed findings with page numbers
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
     }
   } catch (e) {
     // Text extraction might fail for scanned/image-only PDFs; ignore gracefully
@@ -78,8 +97,7 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
 
 function scanTextForEmailsAndUrls(
   text: string,
-  emails: Set<string>,
-  urls: Set<string>
+  onMatch: (value: string, kind: 'email' | 'url') => void
 ) {
   // Normalize spaces around URL punctuation sometimes introduced by PDF extraction
   const normalizeForUrlScan = (s: string) => {
@@ -132,7 +150,7 @@ function scanTextForEmailsAndUrls(
 
   let m: RegExpExecArray | null;
   while ((m = emailRe.exec(source)) !== null) {
-    emails.add(stripTrailing(m[0]));
+    onMatch(stripTrailing(m[0]), 'email');
   }
 
   const tldAllow = [
@@ -169,7 +187,7 @@ function scanTextForEmailsAndUrls(
         extracted = extracted.slice(0, extracted.lastIndexOf('.'));
       }
 
-      urls.add(extracted);
+      onMatch(extracted, 'url');
     }
   }
 }
