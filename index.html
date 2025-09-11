@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Metadata Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f8f9ff;
+            border: 3px dashed #4facfe;
+            border-radius: 15px;
+            padding: 60px 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-section:hover {
+            background: #f0f4ff;
+            border-color: #00f2fe;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.2);
+        }
+
+        .upload-section.dragover {
+            background: #e8f4fd;
+            border-color: #00f2fe;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #4facfe;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .supported-formats {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .format-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .file-info {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #4facfe;
+        }
+
+        .file-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .metadata-item {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #4facfe;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .metadata-value {
+            color: #555;
+            font-size: 1rem;
+            word-break: break-all;
+        }
+
+        .error {
+            background: #ffe6e6;
+            border: 1px solid #ff9999;
+            color: #cc0000;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .clear-button {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .clear-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Manuscript Anonymity Scanner</h1>
+            <p>Extract metadata from your documents locally - no upload required</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Drop files here or click to select</div>
+                <div class="upload-subtext">All processing happens locally on your device</div>
+                <input type="file" id="fileInput" class="file-input" multiple 
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                
+                <div class="supported-formats">
+                    <span class="format-badge">PDF</span>
+                    <span class="format-badge">Word</span>
+                    <span class="format-badge">Excel</span>
+                    <span class="format-badge">PowerPoint</span>
+                </div>
+            </div>
+            
+            <div class="results-section" id="resultsSection">
+                <!-- Results will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const resultsSection = document.getElementById('resultsSection');
+
+        // File upload handling
+        uploadSection.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFiles);
+
+        // Drag and drop handling
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            processFiles(files);
+        });
+
+        function handleFiles(event) {
+            const files = Array.from(event.target.files);
+            processFiles(files);
+        }
+
+        async function processFiles(files) {
+            if (files.length === 0) return;
+
+            // Show loading
+            showLoading();
+
+            for (const file of files) {
+                try {
+                    const metadata = await extractMetadata(file);
+                    displayMetadata(file, metadata);
+                } catch (error) {
+                    displayError(file, error.message);
+                }
+            }
+
+            hideLoading();
+        }
+
+        function showLoading() {
+            resultsSection.style.display = 'block';
+            resultsSection.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing files...</p>
+                </div>
+            `;
+        }
+
+        function hideLoading() {
+            const loading = document.querySelector('.loading');
+            if (loading) loading.remove();
+        }
+
+        async function extractMetadata(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const metadata = {
+                fileName: file.name,
+                fileSize: formatFileSize(file.size),
+                lastModified: new Date(file.lastModified).toLocaleString(),
+                fileType: file.type || 'Unknown',
+                extension: extension
+            };
+
+            switch (extension) {
+                case 'pdf':
+                    return await extractPDFMetadata(file, metadata);
+                case 'docx':
+                case 'doc':
+                    return await extractWordMetadata(file, metadata);
+                case 'xlsx':
+                case 'xls':
+                    return await extractExcelMetadata(file, metadata);
+                case 'pptx':
+                case 'ppt':
+                    return await extractPowerPointMetadata(file, metadata);
+                default:
+                    return metadata;
+            }
+        }
+
+        async function extractPDFMetadata(file, metadata) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                metadata.pages = pdf.numPages;
+                
+                const data = await pdf.getMetadata();
+                console.log(data)
+                if (data.info) {
+                    metadata.title = data.info.Title || 'N/A';
+                    metadata.author = data.info.Author || 'N/A';
+                    metadata.subject = data.info.Subject || 'N/A';
+                    metadata.creator = data.info.Creator || 'N/A';
+                    metadata.producer = data.info.Producer || 'N/A';
+                    metadata.creationDate = data.info.CreationDate ? new Date(data.info.CreationDate).toLocaleString() : 'N/A';
+                    metadata.modificationDate = data.info.ModDate ? new Date(data.info.ModDate).toLocaleString() : 'N/A';
+                }
+            } catch (error) {
+                metadata.error = `PDF parsing error: ${error.message}`;
+            }
+            
+            return metadata;
+        }
+
+        async function extractWordMetadata(file, metadata) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                
+                if (file.name.endsWith('.docx')) {
+                    // For .docx files, we can extract some basic info
+                    // This is a simplified approach - mammoth mainly focuses on content conversion
+                    metadata.wordProcessor = 'Microsoft Word (DOCX format)';
+                    
+                    // Try to extract content and get basic stats
+                    const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+                    if (result.value) {
+                        const text = result.value;
+                        metadata.wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+                        metadata.characterCount = text.length;
+                    }
+                } else {
+                    metadata.wordProcessor = 'Microsoft Word (DOC format - limited metadata available)';
+                    metadata.note = 'Legacy DOC format has limited metadata extraction capabilities in browsers';
+                }
+            } catch (error) {
+                metadata.error = `Word document parsing error: ${error.message}`;
+            }
+            
+            return metadata;
+        }
+
+        async function extractExcelMetadata(file, metadata) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {
+                    cellStyles: true,
+                    cellFormulas: true,
+                    cellDates: true,
+                    cellNF: true,
+                    sheetStubs: true
+                });
+
+                metadata.sheetNames = workbook.SheetNames;
+                metadata.numberOfSheets = workbook.SheetNames.length;
+                
+                if (workbook.Props) {
+                    metadata.title = workbook.Props.Title || 'N/A';
+                    metadata.author = workbook.Props.Author || 'N/A';
+                    metadata.subject = workbook.Props.Subject || 'N/A';
+                    metadata.company = workbook.Props.Company || 'N/A';
+                    metadata.application = workbook.Props.Application || 'N/A';
+                    metadata.createdDate = workbook.Props.CreatedDate ? new Date(workbook.Props.CreatedDate).toLocaleString() : 'N/A';
+                    metadata.lastSavedDate = workbook.Props.ModifiedDate ? new Date(workbook.Props.ModifiedDate).toLocaleString() : 'N/A';
+                }
+
+                // Get row/column info from first sheet
+                if (workbook.SheetNames.length > 0) {
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const range = XLSX.utils.decode_range(firstSheet['!ref'] || 'A1:A1');
+                    metadata.firstSheetRange = `${range.e.r + 1} rows × ${range.e.c + 1} columns`;
+                }
+            } catch (error) {
+                metadata.error = `Excel parsing error: ${error.message}`;
+            }
+            
+            return metadata;
+        }
+
+        async function extractPowerPointMetadata(file, metadata) {
+            // PowerPoint metadata extraction is complex in browsers
+            // This is a placeholder that shows basic file info
+            metadata.application = 'Microsoft PowerPoint';
+            metadata.note = 'PowerPoint metadata extraction requires specialized libraries. Showing basic file information.';
+            
+            // We could potentially use libraries like 'pptx2json' or similar,
+            // but they're not as readily available via CDN
+            
+            return metadata;
+        }
+
+        function displayMetadata(file, metadata) {
+            const fileIcon = getFileIcon(file.name);
+            
+            const metadataHtml = Object.entries(metadata)
+                .filter(([key]) => key !== 'fileName' && key !== 'error')
+                .map(([key, value]) => {
+                    const label = formatLabel(key);
+                    const formattedValue = Array.isArray(value) ? value.join(', ') : value;
+                    return `
+                        <div class="metadata-item">
+                            <div class="metadata-label">${label}</div>
+                            <div class="metadata-value">${formattedValue}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            const fileInfoHtml = `
+                <div class="file-info">
+                    <div class="file-name">
+                        <span class="file-icon">${fileIcon}</span>
+                        ${metadata.fileName}
+                    </div>
+                    ${metadata.error ? `<div class="error">${metadata.error}</div>` : ''}
+                    <div class="metadata-grid">
+                        ${metadataHtml}
+                    </div>
+                </div>
+            `;
+
+            if (resultsSection.innerHTML.includes('loading')) {
+                resultsSection.innerHTML = '';
+            }
+
+            resultsSection.innerHTML += fileInfoHtml;
+            
+            // Add clear button if it doesn't exist
+            if (!document.querySelector('.clear-button')) {
+                resultsSection.innerHTML += `
+                    <button class="clear-button" onclick="clearResults()">Clear Results</button>
+                `;
+            }
+
+            resultsSection.style.display = 'block';
+        }
+
+        function displayError(file, errorMessage) {
+            const fileIcon = getFileIcon(file.name);
+            
+            const errorHtml = `
+                <div class="file-info">
+                    <div class="file-name">
+                        <span class="file-icon">${fileIcon}</span>
+                        ${file.name}
+                    </div>
+                    <div class="error">
+                        <strong>Error:</strong> ${errorMessage}
+                    </div>
+                </div>
+            `;
+
+            if (resultsSection.innerHTML.includes('loading')) {
+                resultsSection.innerHTML = '';
+            }
+
+            resultsSection.innerHTML += errorHtml;
+            resultsSection.style.display = 'block';
+        }
+
+        function clearResults() {
+            resultsSection.innerHTML = '';
+            resultsSection.style.display = 'none';
+            fileInput.value = '';
+        }
+
+        function getFileIcon(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📕',
+                'doc': '📘',
+                'docx': '📘',
+                'xls': '📗',
+                'xlsx': '📗',
+                'ppt': '📙',
+                'pptx': '📙'
+            };
+            return icons[extension] || '📄';
+        }
+
+        function formatLabel(key) {
+            const labels = {
+                'fileSize': 'File Size',
+                'lastModified': 'Last Modified',
+                'fileType': 'File Type',
+                'extension': 'Extension',
+                'pages': 'Pages',
+                'title': 'Title',
+                'author': 'Author',
+                'subject': 'Subject',
+                'creator': 'Creator',
+                'producer': 'Producer',
+                'creationDate': 'Creation Date',
+                'modificationDate': 'Modification Date',
+                'wordProcessor': 'Word Processor',
+                'wordCount': 'Word Count',
+                'characterCount': 'Character Count',
+                'sheetNames': 'Sheet Names',
+                'numberOfSheets': 'Number of Sheets',
+                'company': 'Company',
+                'application': 'Application',
+                'createdDate': 'Created Date',
+                'lastSavedDate': 'Last Saved Date',
+                'firstSheetRange': 'First Sheet Range',
+                'note': 'Note'
+            };
+            return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
