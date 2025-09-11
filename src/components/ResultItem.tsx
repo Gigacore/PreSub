@@ -27,18 +27,18 @@ function isNonEmpty(value: unknown) {
 
 function ResultItem({ result }: ResultItemProps) {
   return (
-    <div className="bg-white rounded-2xl p-6">
+    <div className="bg-white rounded-2xl">
       {/* File Name */}
-      <div className="flex items-center mb-6 border-b pb-4">
-        <span className="material-symbols-outlined text-red-500 mr-3">insert_drive_file</span>
-        <h2 className="text-xl font-semibold text-gray-800">{result.fileName}</h2>
+      <div className="flex items-start gap-3 mb-6 border-b pb-4">
+        <span aria-hidden="true" className="material-symbols-outlined text-red-500 mt-0.5">insert_drive_file</span>
+        <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 break-words">{result.fileName}</h2>
       </div>
 
       {/* Potential Issues */}
       {!!result.potentialIssues?.length && (
         <div className="bg-red-100 p-4 rounded-xl border border-red-300 ring-2 ring-red-200 mb-6">
           <div className="flex items-center">
-            <span className="material-symbols-outlined text-red-600 mr-3">error</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-red-600 mr-3">error</span>
             <div>
               <p className="text-sm font-medium text-red-800">POTENTIAL ISSUE</p>
               <ul className="text-sm text-red-900 list-disc ml-5">
@@ -54,7 +54,7 @@ function ResultItem({ result }: ResultItemProps) {
       )}
 
       {/* Metadata Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {(() => {
           const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
           const countKeys: string[] = ['wordCount', 'words', 'slides', 'pages', 'numberOfSheets'];
@@ -78,8 +78,8 @@ function ResultItem({ result }: ResultItemProps) {
                     key={`priority-${key}`}
                     className={`bg-gray-50 p-4 rounded-xl border border-gray-200 ${isHighlight ? 'ring-2 ring-red-200' : ''}`}
                   >
-                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
-                    <p className="text-gray-800">{formatValue(value)}</p>
+                    <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
                   </div>
                 );
               })}
@@ -89,8 +89,8 @@ function ResultItem({ result }: ResultItemProps) {
                 const value = (result.metadata as any)[key];
                 return (
                   <div key={`count-${key}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
-                    <p className="text-gray-800">{formatValue(value)}</p>
+                    <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
                   </div>
                 );
               })}
@@ -100,8 +100,8 @@ function ResultItem({ result }: ResultItemProps) {
                 const value = (result.metadata as any)[key];
                 return (
                   <div key={`date-${key}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <p className="text-gray-500 font-semibold">{formatLabel(String(key))}</p>
-                    <p className="text-gray-800">{formatValue(value)}</p>
+                    <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
+                    <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
                   </div>
                 );
               })}
@@ -114,8 +114,8 @@ function ResultItem({ result }: ResultItemProps) {
                     key={key}
                     className={`bg-gray-50 p-4 rounded-xl border border-gray-200 ${isHighlight ? 'ring-2 ring-red-200' : ''}`}
                   >
-                    <p className="text-gray-500 font-semibold">{formatLabel(key)}</p>
-                    <p className="text-gray-800">{formatValue(value)}</p>
+                    <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(key)}</p>
+                    <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
                   </div>
                 );
               })}

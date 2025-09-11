@@ -36,6 +36,7 @@ export default defineConfig({
       },
     }),
   ],
+  base: "/PreSub/",
   test: {
     globals: true,
     environment: 'jsdom',

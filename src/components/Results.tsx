@@ -15,7 +15,7 @@ function Results({ results, onClear }: ResultsProps) {
       <div className="mt-2 flex justify-start">
         <button
           onClick={onClear}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-6 rounded-lg transition duration-300"
+          className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-6 rounded-lg transition duration-300 w-full sm:w-auto min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
         >
           Clear Results
         </button>

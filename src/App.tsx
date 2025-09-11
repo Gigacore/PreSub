@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import FileDropzone from './components/FileDropzone';
 import Results from './components/Results';
 import { parseFile } from './lib/file-parser';
@@ -47,7 +48,7 @@ function App() {
   return (
     <div className="min-h-screen font-sans p-4 sm:p-6 md:p-8">
       <main className="mx-auto max-w-6xl">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
           <Header />
           <FileDropzone onFilesSelected={handleFiles} />
           {isLoading && (
@@ -58,6 +59,7 @@ function App() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

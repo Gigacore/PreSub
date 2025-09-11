@@ -1,4 +1,6 @@
-# PreSub
+<p align="center">
+  <img src="assets/presub-logo.png" alt="PreSub" width="520" />
+</p>
 
 PreSub helps you scan documents locally for identifying anonymity issues before you submit or share them. It highlights authoring details like Author, Creator, and Last Modified By, along with other useful properties such as page/slide counts and creation/modification dates — all processed in your browser with no uploads.
 
@@ -45,3 +47,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Disclaimer
 
 This tool provides basic metadata checks, authors must ensure full compliance with anonymity and submission guidelines through thorough reviews before publishing.
+
+---
+
+PreSub is open source — view and contribute on GitHub: https://github.com/Gigacore/PreSub

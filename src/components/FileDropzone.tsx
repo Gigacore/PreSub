@@ -38,7 +38,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
     <>
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer mb-8 transition-colors ${
+        className={`border-2 border-dashed rounded-2xl p-6 sm:p-10 md:p-12 text-center cursor-pointer mb-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
           isDragActive
             ? 'border-blue-500 bg-blue-50'
             : 'border-gray-300 bg-gray-100 hover:bg-gray-200'
@@ -46,19 +46,19 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center">
-          <span className="material-symbols-outlined text-gray-500" style={{ fontSize: 48 }}>upload_file</span>
-          <p className="mt-4 text-lg font-semibold text-gray-700">
+          <span aria-hidden="true" className="material-symbols-outlined text-gray-500 text-5xl sm:text-6xl">upload_file</span>
+          <p className="mt-4 text-base sm:text-lg font-semibold text-gray-700">
             {isDragActive ? 'Drop the files here ...' : 'Drop files here or click to select'}
           </p>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-gray-600 mb-6 px-2">
             All processing happens on your device. No data is uploaded.
           </p>
-          <div className="flex justify-center flex-wrap gap-4">
-            <button type="button" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">PDF</button>
-            <button type="button" className="bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">Word</button>
-            <button type="button" className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">Excel</button>
-            <button type="button" className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300">PowerPoint</button>
-          </div>
+          <ul className="flex justify-center flex-wrap gap-2 sm:gap-3" aria-label="Supported formats" role="list">
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200">PDF</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200">Word</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-green-100 text-green-700 ring-1 ring-inset ring-green-200">Excel</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-orange-100 text-orange-700 ring-1 ring-inset ring-orange-200">PowerPoint</span></li>
+          </ul>
         </div>
       </div>
       {message && (
