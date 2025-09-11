@@ -28,6 +28,10 @@ function isNonEmpty(value: unknown) {
 
 function ResultItem({ result }: ResultItemProps) {
   const [ignoredKeys, setIgnoredKeys] = useState<Set<string>>(new Set());
+  // Track which content-finding rows are reviewed (for strike-through)
+  const [checkedFindings, setCheckedFindings] = useState<Set<string>>(new Set());
+  // Filter Content Findings by domain (email domain or URL hostname)
+  const [domainFilter, setDomainFilter] = useState<string>('');
 
   const ISSUE_TYPE_BY_KEY: Record<string, string> = {
     author: 'AUTHOR FOUND',
@@ -220,29 +224,105 @@ function ResultItem({ result }: ResultItemProps) {
 
         if (hasCF) {
           const rows = [
-            ...(cf!.emails || []).map((e) => ({ type: 'Email', value: e.value, pages: e.pages })),
-            ...(cf!.urls || []).map((u) => ({ type: 'URL', value: u.value, pages: u.pages })),
+            ...(cf!.emails || []).map((e) => ({ type: 'Email' as const, value: e.value, pages: e.pages })),
+            ...(cf!.urls || []).map((u) => ({ type: 'URL' as const, value: u.value, pages: u.pages })),
           ];
+
+          const extractDomain = (type: 'Email' | 'URL', value: string) => {
+            try {
+              if (type === 'Email') {
+                const at = value.lastIndexOf('@');
+                if (at !== -1) return value.slice(at + 1).trim().toLowerCase();
+                return '';
+              }
+              // URL
+              let host = '';
+              try {
+                host = new URL(value).hostname;
+              } catch {
+                // fallback: naive parse
+                const m = value.match(/^[a-zA-Z]+:\/\/(?:[^@\n]+@)?([^\/:?#\n]+)/);
+                host = m?.[1] || '';
+              }
+              host = host.trim().toLowerCase();
+              if (host.startsWith('www.')) host = host.slice(4);
+              return host;
+            } catch {
+              return '';
+            }
+          };
+
+          const allDomains = rows
+            .map((r) => extractDomain(r.type, r.value))
+            .filter((d) => d.length > 0);
+          const uniqueDomains = Array.from(new Set(allDomains)).sort((a, b) => a.localeCompare(b));
+
+          const filteredRows = domainFilter
+            ? rows.filter((r) => {
+                const d = extractDomain(r.type, r.value);
+                return d === domainFilter || d.endsWith(`.${domainFilter}`);
+              })
+            : rows;
           return (
             <div className="mb-2">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Content Findings</h3>
+              {/* Divider above Content Findings section with padding */}
+              <div className="my-4 h-px bg-gray-200" />
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-gray-700">Content Findings</h3>
+                {/* Domain Filter aligned right */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor="domain-filter" className="text-xs text-gray-600">Filter by domain</label>
+                  <select
+                    id="domain-filter"
+                    value={domainFilter}
+                    onChange={(e) => setDomainFilter(e.target.value)}
+                    className="text-xs rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All domains</option>
+                    {uniqueDomains.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="overflow-x-auto rounded-xl border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-3 py-2 w-10 text-left text-xs font-semibold text-gray-600" aria-label="Reviewed" title="Reviewed">&nbsp;</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Type</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Pages</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {rows.map((r, i) => (
-                      <tr key={i}>
-                        <td className="px-4 py-2 text-xs text-gray-800 whitespace-nowrap">{r.type}</td>
-                        <td className="px-4 py-2 text-xs text-blue-700 break-all">{r.value}</td>
-                        <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{r.pages.join(', ')}</td>
-                      </tr>
-                    ))}
+                    {filteredRows.map((r, i) => {
+                      const id = `${r.type}:${r.value}:${r.pages.join('|')}`;
+                      const checked = checkedFindings.has(id);
+                      const toggle = () =>
+                        setCheckedFindings((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(id)) next.delete(id);
+                          else next.add(id);
+                          return next;
+                        });
+                      return (
+                        <tr key={i}>
+                          <td className="px-3 py-2 align-top">
+                            <input
+                              type="checkbox"
+                              aria-label={`Mark ${r.type} ${r.value} as reviewed`}
+                              checked={checked}
+                              onChange={toggle}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className={`px-4 py-2 text-xs whitespace-nowrap ${checked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{r.type}</td>
+                          <td className={`px-4 py-2 text-xs break-all ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>{r.value}</td>
+                          <td className={`px-4 py-2 text-xs whitespace-nowrap ${checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{r.pages.join(', ')}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -254,6 +334,8 @@ function ResultItem({ result }: ResultItemProps) {
         if (!legacyEmails && !legacyUrls) return null;
         return (
           <div className="mb-2">
+            {/* Divider above Content Findings section with padding */}
+            <div className="my-4 h-px bg-gray-200" />
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Content Findings</h3>
             <div className="space-y-4">
               {!!legacyEmails?.length && (
