@@ -12,7 +12,7 @@ export interface ProcessedFile {
     value: string;
   }>;
   metadata: {
-    [key: string]: string | number | boolean | null | undefined;
+    [key: string]: string | number | boolean | string[] | null | undefined;
   };
 }
 

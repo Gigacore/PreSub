@@ -20,19 +20,20 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
     },
   };
 
+  // Track issues found across metadata and content
+  const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+
   if (metadata.info) {
     const info = metadata.info as any; // pdfjs-dist types are not perfect
     const author = typeof info.Author === 'string' ? info.Author.trim() : '';
     const creator = typeof info.Creator === 'string' ? info.Creator.trim() : '';
 
-    const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     if (author) {
       issues.push({ type: 'AUTHOR FOUND', value: author });
     }
     if (creator) {
       issues.push({ type: 'CREATOR FOUND', value: creator });
     }
-    if (issues.length) processedFile.potentialIssues = issues;
     processedFile.metadata.title = info.Title;
     processedFile.metadata.author = info.Author;
     processedFile.metadata.subject = info.Subject;
@@ -42,7 +43,76 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
     processedFile.metadata.modificationDate = info.ModDate;
   }
 
+  // Extract textual content to scan for emails and URLs
+  try {
+    const emails = new Set<string>();
+    const urls = new Set<string>();
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const tc: any = await page.getTextContent();
+      const text = (tc.items || [])
+        .map((it: any) => (typeof it.str === 'string' ? it.str : ''))
+        .join(' ');
+
+      scanTextForEmailsAndUrls(text, emails, urls);
+    }
+
+    if (emails.size) {
+      processedFile.metadata.emailsFound = Array.from(emails);
+      issues.push({ type: 'EMAIL IN CONTENT', value: previewList(emails) });
+    }
+    if (urls.size) {
+      processedFile.metadata.urlsFound = Array.from(urls);
+      issues.push({ type: 'URL IN CONTENT', value: previewList(urls) });
+    }
+  } catch (e) {
+    // Text extraction might fail for scanned/image-only PDFs; ignore gracefully
+    console.warn('PDF text extraction skipped:', e);
+  }
+
+  if (issues.length) processedFile.potentialIssues = issues;
+
   return processedFile;
+}
+
+function scanTextForEmailsAndUrls(
+  text: string,
+  emails: Set<string>,
+  urls: Set<string>
+) {
+  // Basic email detection
+  const emailRe = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+  // URL detection: http/https, www., and bare domains (simple heuristic)
+  const urlPatterns: RegExp[] = [
+    /https?:\/\/[^\s<>")]+/gi,
+    /\bwww\.[^\s<>")]+/gi,
+    /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,})(?:\/[\w#%&+@;.,:!\-?_~]*)?/gi,
+  ];
+
+  const trailing = /[)\]\}>,.;:!?]+$/;
+  const normalise = (s: string) => s.replace(trailing, '').trim();
+
+  let m: RegExpExecArray | null;
+  while ((m = emailRe.exec(text)) !== null) {
+    emails.add(normalise(m[0]));
+  }
+
+  for (const re of urlPatterns) {
+    let um: RegExpExecArray | null;
+    while ((um = re.exec(text)) !== null) {
+      const raw = normalise(um[0]);
+      // Skip if this looks like an email (already captured)
+      if (/^[^\s@]+@[^\s@]+$/.test(raw)) continue;
+      urls.add(raw);
+    }
+  }
+}
+
+function previewList(items: Set<string>, limit = 5): string {
+  const arr = Array.from(items);
+  const shown = arr.slice(0, limit).join(', ');
+  return arr.length > limit ? `${shown} (+${arr.length - limit} more)` : shown;
 }
 
 async function parseDocx(file: File): Promise<ProcessedFile> {

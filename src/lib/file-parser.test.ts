@@ -5,13 +5,23 @@ import { parseFile } from './file-parser';
 vi.mock('pdfjs-dist', () => ({
   getDocument: vi.fn().mockReturnValue({
     promise: Promise.resolve({
-      numPages: 10,
+      numPages: 2,
       getMetadata: vi.fn().mockResolvedValue({
         info: {
           Author: 'Test Author',
           Title: 'Test Title',
         },
       }),
+      getPage: vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [
+              { str: 'Reach us at test@example.com' },
+              { str: 'Visit https://example.com for details' },
+            ],
+          }),
+        })
+      ),
     }),
   }),
   GlobalWorkerOptions: {
@@ -43,8 +53,13 @@ describe('file-parser', () => {
     const result = await parseFile(file);
     expect(result.fileName).toBe('test.pdf');
     expect(result.potentialIssues?.[0].value).toBe('Test Author');
-    expect(result.metadata.pages).toBe(10);
+    expect(result.metadata.pages).toBe(2);
     expect(result.metadata.title).toBe('Test Title');
+    // Newly added content scanning
+    expect(Array.isArray((result.metadata as any).emailsFound)).toBe(true);
+    expect((result.metadata as any).emailsFound[0]).toBe('test@example.com');
+    expect(Array.isArray((result.metadata as any).urlsFound)).toBe(true);
+    expect((result.metadata as any).urlsFound[0]).toBe('https://example.com');
   });
 
   it('should parse a DOCX file', async () => {
