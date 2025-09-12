@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/PreSub/dev-sw.js?dev-sw', { scope: '/PreSub/', type: 'classic' })
