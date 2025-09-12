@@ -1,5 +1,5 @@
 import { useDropzone } from 'react-dropzone';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface FileDropzoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -8,6 +8,29 @@ interface FileDropzoneProps {
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [hasDropped, setHasDropped] = useState(false);
+  // Detect mobile to avoid image-only pickers on iOS/Android when images are in accept list
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  const accept = useMemo(() => {
+    const documentsOnly = {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+    } as const;
+
+    // On desktop: keep images enabled. On mobile: exclude images to ensure Files picker shows docs.
+    if (isMobile) return documentsOnly as any;
+
+    return {
+      ...documentsOnly,
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/svg+xml': ['.svg'],
+      'image/tiff': ['.tif', '.tiff'],
+    } as const as any;
+  }, [isMobile]);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
       setMessage(null);
@@ -26,16 +49,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
         setMessage('Some files were rejected due to type restrictions.');
       }
     },
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/svg+xml': ['.svg'],
-      'image/tiff': ['.tif', '.tiff'],
-    },
+    accept,
   });
 
   return (

@@ -5,6 +5,11 @@ import JSZip from 'jszip';
 import type { ProcessedFile } from '../App';
 import * as ExifReader from 'exifreader';
 
+// Helper: treat any metadata value containing "LaTeX" (any case) as non-issue
+function containsLatex(value: unknown): boolean {
+  return typeof value === 'string' && /latex/i.test(value);
+}
+
 // It's important to set the worker source for pdfjs-dist
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
 
@@ -28,10 +33,10 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
     const author = typeof info.Author === 'string' ? info.Author.trim() : '';
     const creator = typeof info.Creator === 'string' ? info.Creator.trim() : '';
 
-    if (author) {
+    if (author && !containsLatex(author)) {
       issues.push({ type: 'AUTHOR FOUND', value: author });
     }
-    if (creator) {
+    if (creator && !containsLatex(creator)) {
       issues.push({ type: 'CREATOR FOUND', value: creator });
     }
     processedFile.metadata.title = info.Title;
@@ -192,11 +197,11 @@ function scanTextForEmailsAndUrls(
   }
 }
 
-function previewList(items: Set<string>, limit = 5): string {
-  const arr = Array.from(items);
-  const shown = arr.slice(0, limit).join(', ');
-  return arr.length > limit ? `${shown} (+${arr.length - limit} more)` : shown;
-}
+// function previewList(items: Set<string>, limit = 5): string {
+//   const arr = Array.from(items);
+//   const shown = arr.slice(0, limit).join(', ');
+//   return arr.length > limit ? `${shown} (+${arr.length - limit} more)` : shown;
+// }
 
 async function parseDocx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -216,9 +221,9 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
       const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
       const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
       const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-      if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-      if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
-      if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+      if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+      if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
+      if (lastModifiedBy && !containsLatex(lastModifiedBy)) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
       if (issues.length) processedFile.potentialIssues = issues;
     } catch (e) {
       // Ignore metadata errors for docx; continue with text extraction
@@ -285,9 +290,9 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
     const lastModifiedBy = typeof (props as any).LastAuthor === 'string' ? (props as any).LastAuthor.trim() : '';
 
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
-    if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (lastModifiedBy && !containsLatex(lastModifiedBy)) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
     if (issues.length) processedFile.potentialIssues = issues;
     processedFile.metadata.title = (props as any).Title;
     processedFile.metadata.author = (props as any).Author;
@@ -383,9 +388,9 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
     const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
     const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
-    if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (lastModifiedBy && !containsLatex(lastModifiedBy)) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('PPTX metadata extraction failed:', e);
@@ -648,8 +653,8 @@ async function parseJpeg(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('JPEG parse warning:', e);
@@ -699,8 +704,8 @@ async function parsePng(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('PNG parse warning:', e);
@@ -757,8 +762,8 @@ async function parseSvg(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('SVG parse warning:', e);
@@ -791,8 +796,8 @@ async function parseTiff(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (issues.length) processedFile.potentialIssues = issues;
 
     if (!xmpXml) {
