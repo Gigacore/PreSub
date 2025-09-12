@@ -17,6 +17,9 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'text/csv': ['.csv'],
+      'text/markdown': ['.md', '.markdown'],
+      'application/json': ['.json'],
     } as const;
 
     // On desktop: keep images enabled. On mobile: exclude images to ensure Files picker shows docs.
@@ -73,6 +76,9 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200">Word</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-green-100 text-green-700 ring-1 ring-inset ring-green-200">Excel</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-orange-100 text-orange-700 ring-1 ring-inset ring-orange-200">PowerPoint</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200">CSV</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-purple-100 text-purple-700 ring-1 ring-inset ring-purple-200">Markdown</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-gray-200 text-gray-800 ring-1 ring-inset ring-gray-300">JSON</span></li>
           </ul>
         </div>
       </div>

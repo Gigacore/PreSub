@@ -159,7 +159,7 @@ function ResultItem({ result }: ResultItemProps) {
                                 onClick={() => toggleIgnore(key)}
                                 className="text-xs sm:text-[0.8125rem] text-red-700 hover:text-red-800 underline underline-offset-2"
                               >
-                                Ignore
+                                Dismiss
                               </button>
                             ) : (
                               <button
@@ -231,6 +231,10 @@ function ResultItem({ result }: ResultItemProps) {
             ...(cf!.urls || []).map((u) => ({ type: 'URL' as const, value: u.value, pages: u.pages })),
           ];
 
+          const fileType = String((result.metadata as any).fileType || '').toUpperCase();
+          const useLineLabel = fileType === 'JSON' || fileType === 'MARKDOWN' || fileType === 'CSV';
+          const positionLabel = useLineLabel ? 'Line' : 'Pages';
+
           const extractDomain = (type: 'Email' | 'URL', value: string) => {
             try {
               if (type === 'Email') {
@@ -295,7 +299,7 @@ function ResultItem({ result }: ResultItemProps) {
                       <th className="px-3 py-2 w-10 text-left text-xs font-semibold text-gray-600" aria-label="Reviewed" title="Reviewed">&nbsp;</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Type</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Pages</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">{positionLabel}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">

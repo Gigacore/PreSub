@@ -496,6 +496,8 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
     case 'md':
     case 'markdown':
       return parseMarkdown(file);
+    case 'json':
+      return parseJson(file);
     case 'pdf':
       return parsePdf(file);
     case 'docx':
@@ -601,6 +603,31 @@ async function parseCsv(file: File): Promise<ProcessedFile> {
       (processedFile.metadata as any).headers = rows[0];
     }
 
+    // Infer simple column types from up to first 50 data rows
+    const dataRows = headerRowPresent ? rows.slice(1) : rows;
+    const sampleRows = dataRows.slice(0, 50);
+    const typeOfCell = (v: string): 'number' | 'boolean' | 'date' | 'string' | 'empty' => {
+      const s = v.trim();
+      if (!s) return 'empty';
+      if (/^(true|false)$/i.test(s)) return 'boolean';
+      if (/^[+-]?\d+(?:\.\d+)?$/.test(s)) return 'number';
+      // ISO-like or common date formats
+      if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?/.test(s)) return 'date';
+      if (/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/.test(s)) return 'date';
+      return 'string';
+    };
+    const colTypes: string[] = [];
+    for (let c = 0; c < numberOfColumns; c++) {
+      const counts: Record<string, number> = { number: 0, boolean: 0, date: 0, string: 0, empty: 0 };
+      for (const r of sampleRows) {
+        const t = typeOfCell(r[c] ?? '');
+        counts[t]++;
+      }
+      const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      colTypes.push(best);
+    }
+    (processedFile.metadata as any).columnTypes = colTypes;
+
     // Content scanning: scan each row and attribute findings to row index (1-based data rows)
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
@@ -686,6 +713,13 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
     // Basic content counts
     const words = text.trim().split(/\s+/).filter(Boolean).length;
     (processedFile.metadata as any).wordCount = words;
+    // Count headings, links and images
+    const headingCount = (text.match(/^\s*#{1,6}\s+/gm) || []).length;
+    const inlineLinkCount = (text.match(/\[[^\]]*\]\([^\)]+\)/g) || []).length;
+    const imageCount = (text.match(/!\[[^\]]*\]\([^\)]+\)/g) || []).length;
+    (processedFile.metadata as any).headingCount = headingCount;
+    (processedFile.metadata as any).linkCount = inlineLinkCount;
+    (processedFile.metadata as any).imageCount = imageCount;
 
     // Content scan: scan by line and record line numbers
     const emailPages = new Map<string, Set<number>>();
@@ -693,6 +727,155 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
     const lines = text.split(/\r?\n/);
     lines.forEach((line, idx) => {
       const page = idx + 1; // treat line number as page index
+      if (!line.trim()) return;
+      scanTextForEmailsAndUrls(line, (value, kind) => {
+        if (kind === 'email') {
+          if (!emailPages.has(value)) emailPages.set(value, new Set());
+          emailPages.get(value)!.add(page);
+        } else {
+          if (!urlPages.has(value)) urlPages.set(value, new Set());
+          urlPages.get(value)!.add(page);
+        }
+      });
+
+      // Also capture Markdown inline links and reference definitions
+      // Inline: [text](url) or ![alt](url)
+      const inlineLinkRe = /!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = inlineLinkRe.exec(line)) !== null) {
+        const target = m[1];
+        scanTextForEmailsAndUrls(target, (value, kind) => {
+          if (kind === 'email') {
+            if (!emailPages.has(value)) emailPages.set(value, new Set());
+            emailPages.get(value)!.add(page);
+          } else {
+            if (!urlPages.has(value)) urlPages.set(value, new Set());
+            urlPages.get(value)!.add(page);
+          }
+        });
+      }
+
+      // Reference definition: [label]: url "title"
+      const refDef = line.match(/^\s*\[[^\]]+\]:\s+(\S+)/);
+      if (refDef) {
+        const target = refDef[1];
+        scanTextForEmailsAndUrls(target, (value, kind) => {
+          if (kind === 'email') {
+            if (!emailPages.has(value)) emailPages.set(value, new Set());
+            emailPages.get(value)!.add(page);
+          } else {
+            if (!urlPages.has(value)) urlPages.set(value, new Set());
+            urlPages.get(value)!.add(page);
+          }
+        });
+      }
+    });
+
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
+    if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
+    }
+  } catch (e) {
+    console.warn('Markdown parse warning:', e);
+    (processedFile.metadata as any).error = 'Could not parse Markdown content';
+  }
+
+  return processedFile;
+}
+
+async function parseJson(file: File): Promise<ProcessedFile> {
+  const text = await file.text();
+  const processedFile: ProcessedFile = {
+    fileName: file.name,
+    metadata: {
+      fileType: 'JSON',
+    },
+  };
+
+  try {
+    const parsed = JSON.parse(text);
+
+    // Basic structural metadata
+    const isArray = Array.isArray(parsed);
+    (processedFile.metadata as any).topLevelType = isArray ? 'array' : typeof parsed;
+    if (isArray) {
+      (processedFile.metadata as any).arrayLength = (parsed as any[]).length;
+    } else if (parsed && typeof parsed === 'object') {
+      const keys = Object.keys(parsed as Record<string, unknown>);
+      (processedFile.metadata as any).topLevelKeys = keys;
+      (processedFile.metadata as any).topLevelKeyCount = keys.length;
+    }
+
+    // Traverse to collect depth and type counts, and author-like fields
+    const typeCounts: Record<string, number> = { string: 0, number: 0, boolean: 0, null: 0, object: 0, array: 0 };
+    let maxDepth = 0;
+    const potentialIssues: NonNullable<ProcessedFile['potentialIssues']> = [];
+    const authors: string[] = [];
+    const creators: string[] = [];
+    const lastModifiedBys: string[] = [];
+
+    const collect = (obj: any, depth: number, path: string) => {
+      if (depth > maxDepth) maxDepth = depth;
+      if (obj === null) {
+        typeCounts.null++;
+        return;
+      }
+      const t = Array.isArray(obj) ? 'array' : typeof obj;
+      if (t === 'array') typeCounts.array++;
+      else if (t === 'object') typeCounts.object++;
+      else if (t === 'string') typeCounts.string++;
+      else if (t === 'number') typeCounts.number++;
+      else if (t === 'boolean') typeCounts.boolean++;
+
+      if (t === 'object') {
+        for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+          const lk = k.toLowerCase();
+          const np = path + '/' + k.replace(/~/g, '~0').replace(/\//g, '~1');
+          // Detect likely author/creator fields
+          if (typeof v === 'string') {
+            if (lk === 'author' || lk.endsWith('author')) authors.push(v);
+            if (lk === 'creator' || lk.endsWith('creator')) creators.push(v);
+            if (lk === 'lastmodifiedby' || lk === 'modifiedby' || lk === 'last_modified_by') lastModifiedBys.push(v);
+          }
+          collect(v as any, depth + 1, np);
+        }
+      } else if (t === 'array') {
+        (obj as any[]).forEach((v, i) => collect(v, depth + 1, path + '/' + i));
+      }
+    };
+
+    collect(parsed, 0, '');
+    (processedFile.metadata as any).maxDepth = maxDepth;
+    (processedFile.metadata as any).typeCounts = typeCounts;
+
+    // Assign authors/creators to metadata (dedup)
+    const uniq = (arr: string[]) => Array.from(new Set(arr.map((s) => s.trim()).filter(Boolean)));
+    const uAuthors = uniq(authors);
+    const uCreators = uniq(creators);
+    const uLmb = uniq(lastModifiedBys);
+    if (uAuthors.length) (processedFile.metadata as any).author = uAuthors.length === 1 ? uAuthors[0] : uAuthors;
+    if (uCreators.length) (processedFile.metadata as any).creator = uCreators.length === 1 ? uCreators[0] : uCreators;
+    if (uLmb.length) (processedFile.metadata as any).lastModifiedBy = uLmb.length === 1 ? uLmb[0] : uLmb;
+
+    // Flag potential issues for those
+    for (const a of uAuthors) if (!containsLatex(a)) potentialIssues.push({ type: 'AUTHOR FOUND', value: a });
+    for (const c of uCreators) if (!containsLatex(c)) potentialIssues.push({ type: 'CREATOR FOUND', value: c });
+    for (const l of uLmb) if (!containsLatex(l)) potentialIssues.push({ type: 'LAST MODIFIED BY FOUND', value: l });
+
+    if (potentialIssues.length) processedFile.potentialIssues = potentialIssues;
+
+    // Content scan: by raw text lines to get accurate line numbers
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
+    const lines = text.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      const page = idx + 1;
       if (!line.trim()) return;
       scanTextForEmailsAndUrls(line, (value, kind) => {
         if (kind === 'email') {
@@ -716,8 +899,8 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
       };
     }
   } catch (e) {
-    console.warn('Markdown parse warning:', e);
-    (processedFile.metadata as any).error = 'Could not parse Markdown content';
+    console.warn('JSON parse warning:', e);
+    (processedFile.metadata as any).error = 'Invalid JSON';
   }
 
   return processedFile;
