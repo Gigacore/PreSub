@@ -7,7 +7,7 @@ interface FileDropzoneProps {
 
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const [message, setMessage] = useState<string | null>(null);
-  const [hasDropped, setHasDropped] = useState(false);
+  
   // Detect mobile to avoid image-only pickers on iOS/Android when images are in accept list
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -34,9 +34,6 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
       setMessage(null);
-      if (accepted && accepted.length > 0) {
-        setHasDropped(true);
-      }
       onFilesSelected(accepted);
     },
     onDropRejected: (rejections) => {
@@ -69,7 +66,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
             {isDragActive ? 'Drop the files here ...' : 'Drop files here or click to select'}
           </p>
           <p className="text-sm text-gray-600 mb-6 px-2">
-            All processing happens on your device. No data is uploaded.
+            PreSub can make mistakes — please double-check important information.
           </p>
           <ul className="flex justify-center flex-wrap gap-2 sm:gap-3" aria-label="Supported formats" role="list">
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200">PDF</span></li>
@@ -82,11 +79,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       {message && (
         <p className="-mt-6 mb-8 text-sm text-red-600 text-center" role="alert">{message}</p>
       )}
-      {hasDropped && (
-        <div className="-mt-5 mb-8 text-center text-gray-500 text-[11px] sm:text-xs" aria-live="polite">
-          PreSub can make mistakes — please double-check important information.
-        </div>
-      )}
+
     </>
   );
 }

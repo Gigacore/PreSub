@@ -491,6 +491,11 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
   switch (extension) {
+    case 'csv':
+      return parseCsv(file);
+    case 'md':
+    case 'markdown':
+      return parseMarkdown(file);
     case 'pdf':
       return parsePdf(file);
     case 'docx':
@@ -538,6 +543,294 @@ export async function parseFile(file: File): Promise<ProcessedFile> {
         },
       };
   }
+}
+
+// ============= Text-like Parsers (CSV / Markdown) =============
+async function parseCsv(file: File): Promise<ProcessedFile> {
+  const text = await file.text();
+  const processedFile: ProcessedFile = {
+    fileName: file.name,
+    metadata: {
+      fileType: 'CSV',
+    },
+  };
+
+  try {
+    // Detect delimiter using first non-empty lines (comma, tab, semicolon, pipe)
+    const lines = text.split(/\r?\n/);
+    const sample = lines.filter((l) => l.trim().length > 0).slice(0, 20);
+    const candidates: Array<{ char: string; name: string }> = [
+      { char: ',', name: 'comma' },
+      { char: '\t', name: 'tab' },
+      { char: ';', name: 'semicolon' },
+      { char: '|', name: 'pipe' },
+    ];
+    let best = candidates[0];
+    let bestScore = -1;
+    for (const c of candidates) {
+      const scores = sample.map((l) => (l.match(new RegExp(escapeRegExp(c.char), 'g')) || []).length);
+      const total = scores.reduce((a, b) => a + b, 0);
+      const varScore = scores.length ? variance(scores) : 0; // prefer consistency
+      const score = total - varScore; // more separators and more consistent
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+    const delimiter = best.char;
+    (processedFile.metadata as any).delimiter = best.name;
+
+    // Parse rows with a minimal CSV state machine (RFC4180-like, supports quotes)
+    const rows: string[][] = [];
+    for (const line of lines) {
+      const row = parseDelimitedLine(line, delimiter);
+      // consider empty trailing newline as no row
+      if (row.length === 1 && row[0] === '' && line.trim() === '') continue;
+      rows.push(row);
+    }
+
+    const numberOfRows = rows.length;
+    const numberOfColumns = rows.reduce((m, r) => Math.max(m, r.length), 0);
+    // Exclude header row if present
+    const headerRowPresent = rows.length > 0 && rows[0].some((c) => /[A-Za-z]/.test(c));
+    (processedFile.metadata as any).headerRowPresent = headerRowPresent;
+    (processedFile.metadata as any).numberOfRows = Math.max(0, numberOfRows - (headerRowPresent ? 1 : 0));
+    (processedFile.metadata as any).numberOfColumns = numberOfColumns;
+    // Header detection done above
+    if (headerRowPresent) {
+      (processedFile.metadata as any).headers = rows[0];
+    }
+
+    // Content scanning: scan each row and attribute findings to row index (1-based data rows)
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
+    rows.forEach((row, idx) => {
+      const page = idx + 1; // treat row number as a page index
+      const joined = row.join(' ');
+      if (!joined.trim()) return;
+      scanTextForEmailsAndUrls(joined, (value, kind) => {
+        if (kind === 'email') {
+          if (!emailPages.has(value)) emailPages.set(value, new Set());
+          emailPages.get(value)!.add(page);
+        } else {
+          if (!urlPages.has(value)) urlPages.set(value, new Set());
+          urlPages.get(value)!.add(page);
+        }
+      });
+    });
+
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
+    if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
+    }
+  } catch (e) {
+    console.warn('CSV parse warning:', e);
+    (processedFile.metadata as any).error = 'Could not parse CSV content';
+  }
+
+  return processedFile;
+}
+
+async function parseMarkdown(file: File): Promise<ProcessedFile> {
+  const text = await file.text();
+  const processedFile: ProcessedFile = {
+    fileName: file.name,
+    metadata: {
+      fileType: 'Markdown',
+    },
+  };
+
+  try {
+    // Front matter (YAML between --- lines at top)
+    const fm = extractFrontMatter(text);
+    if (fm) {
+      const { data } = fm;
+      // Shallow assign common fields
+      if (data.title) (processedFile.metadata as any).title = String(data.title);
+      if (data.description) (processedFile.metadata as any).description = String(data.description);
+      if (data.date) (processedFile.metadata as any).creationDate = toISO(String(data.date)) || String(data.date);
+      if (data.tags) (processedFile.metadata as any).tags = Array.isArray(data.tags) ? data.tags : String(data.tags);
+      if (data.category) (processedFile.metadata as any).category = String(data.category);
+
+      // Authors can be author (string) or authors (array)
+      let authors: string[] = [];
+      if (Array.isArray(data.authors)) {
+        authors = data.authors.map((a: any) => String(a));
+      } else if (data.author) {
+        if (Array.isArray(data.author)) authors = data.author.map((a: any) => String(a));
+        else authors = [String(data.author)];
+      }
+      if (authors.length) (processedFile.metadata as any).author = authors.length === 1 ? authors[0] : authors;
+
+      // Potential issues for authors
+      const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
+      for (const a of authors) {
+        const trimmed = a.trim();
+        if (trimmed && !containsLatex(trimmed)) issues.push({ type: 'AUTHOR FOUND', value: trimmed });
+      }
+      if (issues.length) processedFile.potentialIssues = issues;
+    }
+
+    // Derive title from first heading if missing
+    if (!(processedFile.metadata as any).title) {
+      const m = text.match(/^\s*#\s+(.+)$/m);
+      if (m) (processedFile.metadata as any).title = m[1].trim();
+    }
+
+    // Basic content counts
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    (processedFile.metadata as any).wordCount = words;
+
+    // Content scan: scan by line and record line numbers
+    const emailPages = new Map<string, Set<number>>();
+    const urlPages = new Map<string, Set<number>>();
+    const lines = text.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      const page = idx + 1; // treat line number as page index
+      if (!line.trim()) return;
+      scanTextForEmailsAndUrls(line, (value, kind) => {
+        if (kind === 'email') {
+          if (!emailPages.has(value)) emailPages.set(value, new Set());
+          emailPages.get(value)!.add(page);
+        } else {
+          if (!urlPages.has(value)) urlPages.set(value, new Set());
+          urlPages.get(value)!.add(page);
+        }
+      });
+    });
+
+    const emailList = Array.from(emailPages.keys());
+    const urlList = Array.from(urlPages.keys());
+    if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
+    if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
+    if (emailList.length || urlList.length) {
+      processedFile.contentFindings = {
+        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
+        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
+      };
+    }
+  } catch (e) {
+    console.warn('Markdown parse warning:', e);
+    (processedFile.metadata as any).error = 'Could not parse Markdown content';
+  }
+
+  return processedFile;
+}
+
+// ---- CSV/Markdown helpers ----
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function variance(values: number[]) {
+  if (!values.length) return 0;
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  return values.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / values.length;
+}
+
+function parseDelimitedLine(line: string, delimiter: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        // Escaped quote ""
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+          continue;
+        }
+        inQuotes = false;
+        continue;
+      }
+      cur += ch;
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === delimiter) {
+        out.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}
+
+function extractFrontMatter(text: string): { data: any; body: string } | null {
+  // Must start with --- on its own line
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (!m) return null;
+  const yaml = m[1];
+  const body = text.slice(m[0].length);
+  const data: Record<string, any> = {};
+  // Very light YAML: key: value and key: [a, b], key: [\n - a\n - b\n]
+  // This is intentionally simple to avoid deps.
+  const lines = yaml.split(/\r?\n/);
+  let currentArrayKey: string | null = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    // Array item (dash)
+    if (currentArrayKey && /^-\s+/.test(line)) {
+      (data[currentArrayKey] = data[currentArrayKey] || []).push(line.replace(/^-\s+/, ''));
+      continue;
+    }
+    currentArrayKey = null;
+    const kv = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
+    if (!kv) continue;
+    const key = kv[1];
+    let value = kv[2].trim();
+    if (value === '' || value === '|' || value === '>') {
+      // Start of block or empty; ignore complex blocks
+      continue;
+    }
+    // Quoted string
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith('\'') && value.endsWith('\''))) {
+      value = value.slice(1, -1);
+    } else if (value.startsWith('[') && value.endsWith(']')) {
+      // Inline array
+      const arr = value.slice(1, -1).split(',').map((s) => s.trim()).filter(Boolean);
+      data[key] = arr;
+      continue;
+    } else if (value === '[]') {
+      data[key] = [];
+      continue;
+    } else if (value === null || value === 'null') {
+      data[key] = null;
+      continue;
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      data[key] = value;
+      continue;
+    } else if (/^(true|false)$/i.test(value)) {
+      data[key] = /^true$/i.test(value);
+      continue;
+    } else if (/^\d+(?:\.\d+)?$/.test(value)) {
+      data[key] = Number(value);
+      continue;
+    } else if (value === '|' || value === '>') {
+      // Skip block scalars
+      continue;
+    }
+    // Potential start of block list in following lines
+    if (value === '') {
+      currentArrayKey = key;
+      data[key] = [];
+      continue;
+    }
+    data[key] = value;
+  }
+  return { data, body };
 }
 
 // Helpers
