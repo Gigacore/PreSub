@@ -20,6 +20,8 @@ export interface ProcessedFile {
   };
   // Full EXIF map for image files (all tags flattened to human-readable values)
   exif?: Record<string, string | number | boolean | null>;
+  // Object URL for image previews
+  previewUrl?: string;
 }
 
 function App() {
@@ -31,7 +33,14 @@ function App() {
     const newResults = await Promise.all(
       files.map(async (file) => {
         try {
-          return await parseFile(file);
+          const parsed = await parseFile(file);
+          const isImage =
+            (typeof file.type === 'string' && file.type.startsWith('image/')) ||
+            /\.(jpe?g|png|svg|tiff?)$/i.test(file.name);
+          if (isImage) {
+            return { ...parsed, previewUrl: URL.createObjectURL(file) } as ProcessedFile;
+          }
+          return parsed;
         } catch (error) {
           console.error('Error parsing file:', error);
           return {
@@ -48,6 +57,14 @@ function App() {
   };
 
   const clearResults = () => {
+    // Revoke any created object URLs to avoid memory leaks
+    try {
+      results.forEach((r) => {
+        if (r.previewUrl) {
+          URL.revokeObjectURL(r.previewUrl);
+        }
+      });
+    } catch {}
     setResults([]);
   };
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ProcessedFile } from '../App';
 
 interface ResultItemProps {
@@ -27,11 +27,26 @@ function isNonEmpty(value: unknown) {
 }
 
 function ResultItem({ result }: ResultItemProps) {
+  // Feature flag: toggle EXIF table/expand UI without removing code
+  const ENABLE_EXIF_TABLE = false as const;
   const [ignoredKeys, setIgnoredKeys] = useState<Set<string>>(new Set());
   // Track which content-finding rows are reviewed (for strike-through)
   const [checkedFindings, setCheckedFindings] = useState<Set<string>>(new Set());
   // Filter Content Findings by domain (email domain or URL hostname)
   const [domainFilter, setDomainFilter] = useState<string>('');
+  // EXIF collapsed by default for images
+  const [exifOpen, setExifOpen] = useState<boolean>(false);
+  // Lightbox preview for images
+  const [previewOpen, setPreviewOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewOpen]);
 
   const ISSUE_TYPE_BY_KEY: Record<string, string> = {
     author: 'AUTHOR FOUND',
@@ -60,9 +75,21 @@ function ResultItem({ result }: ResultItemProps) {
   return (
     <div className="bg-white rounded-2xl">
       {/* File Name */}
-      <div className="flex items-start gap-3 mb-6 border-b pb-4">
-        <span aria-hidden="true" className="material-symbols-outlined text-red-500 mt-0.5">insert_drive_file</span>
-        <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 break-words">{result.fileName}</h2>
+      <div className="flex items-start justify-between gap-3 mb-6 border-b pb-4">
+        <div className="flex items-start gap-3">
+          <span aria-hidden="true" className="material-symbols-outlined text-red-500 mt-0.5">insert_drive_file</span>
+          <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 break-words">{result.fileName}</h2>
+        </div>
+        {result.previewUrl && (
+          <img
+            src={result.previewUrl}
+            alt={result.fileName}
+            className="w-24 h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+            loading="lazy"
+            onClick={() => setPreviewOpen(true)}
+            title="Click to preview"
+          />
+        )}
       </div>
 
       {/* Potential Issues */}
@@ -218,35 +245,77 @@ function ResultItem({ result }: ResultItemProps) {
         </div>
       </div>
 
-      {/* EXIF Data Section */}
+      {/* EXIF Data Section (feature-flagged off; analysis still runs) */}
       {(() => {
+        if (!ENABLE_EXIF_TABLE) return null;
         const exif = result.exif as Record<string, string | number | boolean | null> | undefined;
         if (!exif || !Object.keys(exif).length) return null;
         const entries = Object.entries(exif).sort((a, b) => a[0].localeCompare(b[0]));
+        const count = entries.length;
         return (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">EXIF Data</h3>
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Tag</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {entries.map(([k, v]) => (
-                    <tr key={k}>
-                      <td className="px-4 py-2 align-top text-xs whitespace-nowrap text-gray-700">{k}</td>
-                      <td className="px-4 py-2 align-top text-xs break-all text-gray-800">{v === null ? '-' : String(v)}</td>
+            <button
+              type="button"
+              aria-expanded={exifOpen}
+              onClick={() => setExifOpen((v) => !v)}
+              className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 px-4 py-3 mb-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-gray-700">photo_camera</span>
+                <span className="text-sm font-semibold text-gray-800">EXIF Data</span>
+                <span className="ml-2 text-xs text-gray-600">({count} tag{count === 1 ? '' : 's'})</span>
+              </div>
+              <span aria-hidden="true" className={`material-symbols-outlined text-gray-600 transition-transform ${exifOpen ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
+            {exifOpen && (
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Tag</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {entries.map(([k, v]) => (
+                      <tr key={k}>
+                        <td className="px-4 py-2 align-top text-xs whitespace-nowrap text-gray-700">{k}</td>
+                        <td className="px-4 py-2 align-top text-xs break-all text-gray-800">{v === null ? '-' : String(v)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         );
       })()}
+
+      {/* Lightbox Preview */}
+      {previewOpen && result.previewUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={result.previewUrl}
+              alt={result.fileName}
+              className="max-w-[95vw] max-h-[85vh] object-contain rounded-lg shadow-2xl bg-white"
+            />
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(false)}
+              aria-label="Close preview"
+              className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full shadow-md border border-gray-200 p-2 hover:bg-gray-50"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content Findings Section */}
       {(() => {
