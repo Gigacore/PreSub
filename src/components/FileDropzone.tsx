@@ -65,14 +65,14 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
             PreSub can make mistakes — please double-check important information.
           </p>
           <ul className="flex justify-center flex-wrap gap-2 sm:gap-3" aria-label="Supported formats" role="list">
-            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200">PDF</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-pink-100 text-pink-700 ring-1 ring-inset ring-pink-200">PDF</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200">Word</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-green-100 text-green-700 ring-1 ring-inset ring-green-200">Excel</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-orange-100 text-orange-700 ring-1 ring-inset ring-orange-200">PowerPoint</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200">CSV</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-purple-100 text-purple-700 ring-1 ring-inset ring-purple-200">Markdown</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-gray-200 text-gray-800 ring-1 ring-inset ring-gray-300">JSON</span></li>
-            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-pink-100 text-pink-700 ring-1 ring-inset ring-pink-200">Images</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200">Images</span></li>
           </ul>
         </div>
       </div>

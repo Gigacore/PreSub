@@ -52,7 +52,8 @@ function App() {
         }
       })
     );
-    setResults((prevResults) => [...prevResults, ...newResults]);
+    // Prepend newly processed files so they appear at the top
+    setResults((prevResults) => [...newResults, ...prevResults]);
     setIsLoading(false);
   };
 

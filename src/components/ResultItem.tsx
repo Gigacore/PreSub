@@ -174,9 +174,9 @@ function ResultItem({ result }: ResultItemProps) {
                       className={`bg-gray-50 p-4 rounded-xl border border-gray-200 ${isHighlight ? 'ring-2 ring-red-200' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
-                          <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
+                          <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
                         </div>
                         {isHighlightBase && (
                           <div className="shrink-0">
@@ -210,7 +210,7 @@ function ResultItem({ result }: ResultItemProps) {
                   return (
                     <div key={`count-${key}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
-                      <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
+                      <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
                     </div>
                   );
                 })}
@@ -221,7 +221,7 @@ function ResultItem({ result }: ResultItemProps) {
                   return (
                     <div key={`date-${key}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
-                      <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
+                      <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
                     </div>
                   );
                 })}
@@ -235,7 +235,7 @@ function ResultItem({ result }: ResultItemProps) {
                       className={`bg-gray-50 p-4 rounded-xl border border-gray-200 ${isHighlight ? 'ring-2 ring-red-200' : ''}`}
                     >
                       <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(key)}</p>
-                      <p className="text-gray-800 text-xs sm:text-sm">{formatValue(value)}</p>
+                      <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
                     </div>
                   );
                 })}
