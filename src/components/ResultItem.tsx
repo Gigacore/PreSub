@@ -75,8 +75,17 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
 
   const fileNameLower = result.fileName.toLowerCase();
   const fileType = String((result.metadata as any).fileType || '');
+  const isImage = (
+    fileNameLower.endsWith('.jpg') ||
+    fileNameLower.endsWith('.jpeg') ||
+    fileNameLower.endsWith('.png') ||
+    fileNameLower.endsWith('.svg') ||
+    fileNameLower.endsWith('.tif') ||
+    fileNameLower.endsWith('.tiff') ||
+    fileType.toLowerCase().includes('image')
+  );
   const getFileIcon = () => {
-    if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png') || fileNameLower.endsWith('.svg') || fileNameLower.endsWith('.tif') || fileNameLower.endsWith('.tiff') || fileType.toLowerCase().includes('image')) {
+    if (isImage) {
       return { icon: 'image', color: 'text-gray-500' } as const;
     }
     if (fileNameLower.endsWith('.ppt') || fileNameLower.endsWith('.pptx') || fileType.toLowerCase().includes('powerpoint')) {
@@ -97,24 +106,63 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
 
   const headerIcon = getFileIcon();
 
+  // Normalize a raw URL string into a safe, clickable href.
+  // - Preserves existing schemes
+  // - Adds https:// if missing
+  const toSafeHref = (raw: string) => {
+    const v = (raw || '').trim();
+    if (!v) return '#';
+    // If already has a scheme like http(s), ftp, etc.
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)) return v;
+    // If starts with // (protocol-relative)
+    if (/^\/\//.test(v)) return `https:${v}`;
+    // Common case: starts with www. or naked domain
+    return `https://${v}`;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Card Header */}
       <div className="p-4 flex items-center justify-between bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-3 min-w-0">
-          <span aria-hidden className={`material-symbols-outlined ${headerIcon.color}`}>{headerIcon.icon}</span>
+          {isImage && result.previewUrl ? (
+            <div
+              className="relative group h-10 w-10 shrink-0"
+              onClick={() => setPreviewOpen(true)}
+              title="Click to preview"
+            >
+              <img
+                src={result.previewUrl}
+                alt={result.fileName}
+                className="h-10 w-10 rounded-md object-cover border border-gray-200 cursor-pointer"
+                loading="lazy"
+              />
+              <div className="pointer-events-none absolute inset-0 rounded-md bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span aria-hidden className="material-symbols-outlined text-white text-base">open_in_full</span>
+              </div>
+            </div>
+          ) : (
+            <span aria-hidden className={`material-symbols-outlined ${headerIcon.color}`}>{headerIcon.icon}</span>
+          )}
           <h2 className="font-medium text-gray-800 truncate" title={result.fileName}>{result.fileName}</h2>
         </div>
         <div className="flex items-center gap-2">
-          {result.previewUrl && (
-            <img
-              src={result.previewUrl}
-              alt={result.fileName}
-              className="h-10 w-10 rounded-md object-cover border border-gray-200 cursor-pointer"
-              loading="lazy"
+          {result.previewUrl && !isImage && (
+            <div
+              className="relative group h-10 w-10"
               onClick={() => setPreviewOpen(true)}
               title="Click to preview"
-            />
+            >
+              <img
+                src={result.previewUrl}
+                alt={result.fileName}
+                className="h-10 w-10 rounded-md object-cover border border-gray-200 cursor-pointer"
+                loading="lazy"
+              />
+              <div className="pointer-events-none absolute inset-0 rounded-md bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span aria-hidden className="material-symbols-outlined text-white text-base">open_in_full</span>
+              </div>
+            </div>
           )}
           {onRemove && (
             <button
@@ -122,7 +170,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               onClick={onRemove}
               aria-label={`Remove ${result.fileName}`}
               title="Remove"
-              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 cursor-pointer"
             >
               <span aria-hidden className="material-symbols-outlined">delete</span>
             </button>
@@ -134,17 +182,19 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
       {/* Potential Issues */}
       {!!filteredIssues.length && (
         <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-          <div className="flex items-center">
+          <div className="flex items-start">
             <span aria-hidden className="material-symbols-outlined text-red-600 mr-3">error</span>
-            <div>
-              <p className="text-sm font-medium text-red-800">POTENTIAL ISSUE</p>
-              <ul className="text-sm text-red-700 list-disc ml-5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-red-800">
+                {`Potential Issues (${filteredIssues.length})`}
+              </p>
+              <div className="mt-1 space-y-1 text-sm text-red-700">
                 {filteredIssues.map((iss, idx) => (
-                  <li key={idx}>
+                  <div key={idx} className="break-words">
                     <span className="font-semibold">{iss.type}</span>: {iss.value}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -223,7 +273,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                               <button
                                 type="button"
                                 onClick={() => toggleIgnore(key)}
-                                className="text-xs sm:text-[0.8125rem] text-red-700 hover:text-red-800 underline underline-offset-2"
+                                className="text-xs sm:text-[0.8125rem] text-red-700 hover:text-red-800 underline underline-offset-2 cursor-pointer"
                               >
                                 Dismiss
                               </button>
@@ -231,7 +281,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                               <button
                                 type="button"
                                 onClick={() => toggleIgnore(key)}
-                                className="text-xs sm:text-[0.8125rem] text-gray-600 hover:text-gray-800 underline underline-offset-2"
+                                className="text-xs sm:text-[0.8125rem] text-gray-600 hover:text-gray-800 underline underline-offset-2 cursor-pointer"
                               >
                                 Flag
                               </button>
@@ -348,9 +398,9 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               type="button"
               onClick={() => setPreviewOpen(false)}
               aria-label="Close preview"
-              className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full shadow-md border border-gray-200 p-2 hover:bg-gray-50"
+              className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full shadow-md border border-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 flex items-center justify-center h-9 w-9"
             >
-              <span aria-hidden="true" className="material-symbols-outlined">close</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base">close</span>
             </button>
           </div>
         </div>
@@ -471,7 +521,20 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                             <span className={`text-[10px] font-semibold tracking-wide uppercase ${checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{r.type}</span>
                             <span className={`text-[10px] text-gray-500 ${checked ? 'line-through' : ''}`}>• {positionLabel}: {r.pages.join(', ')}</span>
                           </div>
-                          <div className={`text-xs break-words ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>{r.value}</div>
+                          <div className={`text-xs break-words ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>
+                            {r.type === 'URL' ? (
+                              <a
+                                href={toSafeHref(r.value)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${checked ? 'pointer-events-none' : 'hover:underline'} break-words`}
+                              >
+                                {r.value}
+                              </a>
+                            ) : (
+                              r.value
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -513,7 +576,21 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                             />
                           </td>
                           <td className={`px-4 py-2 text-xs whitespace-nowrap ${checked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{r.type}</td>
-                          <td className={`px-4 py-2 text-xs break-all ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>{r.value}</td>
+                          <td className={`px-4 py-2 text-xs break-all ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>
+                            {r.type === 'URL' ? (
+                              <a
+                                href={toSafeHref(r.value)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`${checked ? 'pointer-events-none' : 'hover:underline'} break-all`}
+                                title={r.value}
+                              >
+                                {r.value}
+                              </a>
+                            ) : (
+                              r.value
+                            )}
+                          </td>
                           <td className={`px-4 py-2 text-xs whitespace-nowrap ${checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{r.pages.join(', ')}</td>
                         </tr>
                       );
@@ -550,9 +627,16 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                   <p className="text-blue-800 font-semibold text-xs sm:text-sm mb-2">URLs Found</p>
                   <div className="flex flex-wrap gap-2">
                     {legacyUrls.map((u, i) => (
-                      <span key={i} className="text-xs sm:text-sm bg-white text-blue-800 border border-blue-200 rounded-md px-2 py-1 break-all">
+                      <a
+                        key={i}
+                        href={toSafeHref(u)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs sm:text-sm bg-white text-blue-800 border border-blue-200 rounded-md px-2 py-1 break-all hover:underline"
+                        title={u}
+                      >
                         {u}
-                      </span>
+                      </a>
                     ))}
                   </div>
                 </div>

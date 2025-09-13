@@ -9,11 +9,9 @@ interface ResultsProps {
 
 function Results({ results, onClear, onRemove }: ResultsProps) {
   return (
-    <div className="space-y-8" role="status">
-      {results.map((result, index) => (
-        <ResultItem key={index} result={result} onRemove={() => onRemove(index)} />
-      ))}
-      <div className="mt-2 flex justify-start">
+    <div className="space-y-6" role="status">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-700">Results ({results.length})</p>
         <button
           onClick={onClear}
           className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-2 py-2 px-4 rounded-lg border border-gray-300 bg-white shadow-sm hover:bg-gray-50 transition w-full sm:w-auto min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
@@ -21,6 +19,12 @@ function Results({ results, onClear, onRemove }: ResultsProps) {
           <span aria-hidden className="material-symbols-outlined">delete_sweep</span>
           Clear Results
         </button>
+      </div>
+
+      <div className="space-y-8">
+        {results.map((result, index) => (
+          <ResultItem key={index} result={result} onRemove={() => onRemove(index)} />
+        ))}
       </div>
     </div>
   );
