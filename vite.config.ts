@@ -1,10 +1,13 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const base = env.VITE_BASE ?? '/PreSub/';
+  return {
   plugins: [
     react(),
     VitePWA({
@@ -36,7 +39,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: "/PreSub/",
+  base,
   build: {
     rollupOptions: {
       output: {
@@ -61,4 +64,5 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
   },
+  };
 });
