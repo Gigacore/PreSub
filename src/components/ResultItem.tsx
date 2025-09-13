@@ -332,7 +332,17 @@ function ResultItem({ result }: ResultItemProps) {
 
           const fileType = String((result.metadata as any).fileType || '').toUpperCase();
           const useLineLabel = fileType === 'JSON' || fileType === 'MARKDOWN' || fileType === 'CSV';
-          const positionLabel = useLineLabel ? 'Line' : 'Pages';
+          const fileNameLower = result.fileName.toLowerCase();
+          const isPdf = fileType === 'PDF' || fileNameLower.endsWith('.pdf');
+          const isDoc = fileType.includes('MICROSOFT WORD DOCUMENT') || fileNameLower.endsWith('.docx') || fileNameLower.endsWith('.doc');
+          const isPpt = fileType.includes('POWERPOINT') || fileNameLower.endsWith('.pptx') || fileNameLower.endsWith('.ppt');
+          const positionLabel = useLineLabel
+            ? 'Line'
+            : isPdf || isDoc
+              ? 'Page(s)'
+              : isPpt
+                ? 'Slide(s)'
+                : 'Pages';
 
           const extractDomain = (type: 'Email' | 'URL', value: string) => {
             try {
@@ -391,7 +401,47 @@ function ResultItem({ result }: ResultItemProps) {
                   </select>
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
+              {/* Mobile: card list */}
+              <div className="md:hidden space-y-2">
+                {filteredRows.map((r, i) => {
+                  const id = `${r.type}:${r.value}:${r.pages.join('|')}`;
+                  const checked = checkedFindings.has(id);
+                  const toggle = () =>
+                    setCheckedFindings((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    });
+                  return (
+                    <div
+                      key={i}
+                      className={`bg-white rounded-lg border border-gray-200 p-3 ${checked ? 'opacity-70' : ''}`}
+                      role="listitem"
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`Mark ${r.type} ${r.value} as reviewed`}
+                          checked={checked}
+                          onChange={toggle}
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-semibold tracking-wide uppercase ${checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{r.type}</span>
+                            <span className={`text-[10px] text-gray-500 ${checked ? 'line-through' : ''}`}>• {positionLabel}: {r.pages.join(', ')}</span>
+                          </div>
+                          <div className={`text-xs break-words ${checked ? 'text-gray-400 line-through' : 'text-blue-700'}`}>{r.value}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop/tablet: table view */}
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
