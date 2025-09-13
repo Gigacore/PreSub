@@ -76,7 +76,7 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
   return processedFile;
 }
 
-function scanTextForEmailsAndUrls(
+export function scanTextForEmailsAndUrls(
   text: string,
   emails: Set<string>,
   urls: Set<string>
@@ -88,6 +88,8 @@ function scanTextForEmailsAndUrls(
     out = out.replace(/(https?|ftp)\s*:\s*\/\s*\//gi, '$1://');
     // Tighten spaces around colons after scheme
     out = out.replace(/\b(https?|ftp)\s*:\s*/gi, '$1:');
+    // Remove spaces around @ in emails
+    out = out.replace(/\s*@\s*/g, '@');
     // Collapse spaces around dots within tokens: 'edition . cnn . com' → 'edition.cnn.com'
     out = out.replace(/([A-Za-z0-9%~_+\-])\s*\.\s*([A-Za-z0-9%~_+\-])/g, '$1.$2');
     // Collapse spaces around slashes: '/ reports / docs ' → '/reports/docs'
@@ -136,7 +138,7 @@ function scanTextForEmailsAndUrls(
   }
 
   const tldAllow = [
-    'com','org','net','edu','gov','mil','int','io','co','me','ai','app','dev','tech','xyz','info','biz','online','site','shop','blog','news','art','tv','fm','gg','ly','to','la',
+    'com','org','net','edu','gov','mil','int','io','co','me','ai','app','dev','tech','xyz','info','biz','online','site','shop','blog','news','art','tv','fm','gg','ly','to','la','server',
     'us','uk','de','fr','es','it','nl','be','at','ch','se','no','fi','dk','pl','cz','sk','hu','ro','bg','gr','pt','ie','is','tr','ru','ua','by','kz',
     'ca','mx','br','ar','cl','pe','uy','au','nz','za','in','sg','hk','tw','jp','kr','cn','vn','th','my','id','ph','sa','ae','qa','kw','bh','om','il'
   ];
@@ -174,7 +176,7 @@ function scanTextForEmailsAndUrls(
   }
 }
 
-function previewList(items: Set<string>, limit = 5): string {
+export function previewList(items: Set<string>, limit = 5): string {
   const arr = Array.from(items);
   const shown = arr.slice(0, limit).join(', ');
   return arr.length > limit ? `${shown} (+${arr.length - limit} more)` : shown;
