@@ -12,12 +12,14 @@ export interface ProcessedFile {
     value: string;
   }>;
   metadata: {
-    [key: string]: string | number | boolean | string[] | null | undefined;
+    [key: string]: string | number | boolean | string[] | null | undefined | Record<string, unknown>;
   };
   contentFindings?: {
     emails: Array<{ value: string; pages: number[] }>;
     urls: Array<{ value: string; pages: number[] }>;
   };
+  // Full EXIF map for image files (all tags flattened to human-readable values)
+  exif?: Record<string, string | number | boolean | null>;
 }
 
 function App() {

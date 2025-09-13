@@ -8,9 +8,6 @@ interface FileDropzoneProps {
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const [message, setMessage] = useState<string | null>(null);
   
-  // Detect mobile to avoid image-only pickers on iOS/Android when images are in accept list
-  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
   const accept = useMemo(() => {
     const documentsOnly = {
       'application/pdf': ['.pdf'],
@@ -21,10 +18,6 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       'text/markdown': ['.md', '.markdown'],
       'application/json': ['.json'],
     } as const;
-
-    // On desktop: keep images enabled. On mobile: exclude images to ensure Files picker shows docs.
-    if (isMobile) return documentsOnly as any;
-
     return {
       ...documentsOnly,
       'image/jpeg': ['.jpg', '.jpeg'],
@@ -32,7 +25,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       'image/svg+xml': ['.svg'],
       'image/tiff': ['.tif', '.tiff'],
     } as const as any;
-  }, [isMobile]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
@@ -79,6 +72,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200">CSV</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-purple-100 text-purple-700 ring-1 ring-inset ring-purple-200">Markdown</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-gray-200 text-gray-800 ring-1 ring-inset ring-gray-300">JSON</span></li>
+            <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-pink-100 text-pink-700 ring-1 ring-inset ring-pink-200">Images</span></li>
           </ul>
         </div>
       </div>

@@ -1119,6 +1119,12 @@ async function parseJpeg(file: File): Promise<ProcessedFile> {
     // EXIF/IFD
     const exif = await extractExifMetadata(arrayBuffer);
     Object.assign(processedFile.metadata, exif);
+    // Move the full EXIF map to top-level for UI
+    const all = (processedFile.metadata as any).__exifAll as Record<string, string | number | boolean | null> | undefined;
+    if (all && Object.keys(all).length) {
+      (processedFile as any).exif = all;
+    }
+    delete (processedFile.metadata as any).__exifAll;
 
     const xmpXml = extractXmpXmlFromBuffer(arrayBuffer);
     if (xmpXml) {
@@ -1152,6 +1158,11 @@ async function parsePng(file: File): Promise<ProcessedFile> {
     // EXIF, XMP, and textual chunks via ExifReader
     const exif = await extractExifMetadata(arrayBuffer);
     Object.assign(processedFile.metadata, exif);
+    const all = (processedFile.metadata as any).__exifAll as Record<string, string | number | boolean | null> | undefined;
+    if (all && Object.keys(all).length) {
+      (processedFile as any).exif = all;
+    }
+    delete (processedFile.metadata as any).__exifAll;
 
     // Also parse plain PNG tEXt/iTXt keys and merge (non-destructive)
     const textEntries = extractPngTextChunks(arrayBuffer);
@@ -1261,6 +1272,11 @@ async function parseTiff(file: File): Promise<ProcessedFile> {
     // EXIF/IFD
     const exif = await extractExifMetadata(arrayBuffer);
     Object.assign(processedFile.metadata, exif);
+    const all = (processedFile.metadata as any).__exifAll as Record<string, string | number | boolean | null> | undefined;
+    if (all && Object.keys(all).length) {
+      (processedFile as any).exif = all;
+    }
+    delete (processedFile.metadata as any).__exifAll;
 
     // Prefer XMP scan (present as tag 700, but scanning for XML works too)
     const xmpXml = extractXmpXmlFromBuffer(arrayBuffer);
@@ -1441,6 +1457,32 @@ async function extractExifMetadata(arrayBuffer: ArrayBuffer) {
     if (source) meta.source = String(source).trim();
     if (createDate) meta.creationDate = toISO(String(createDate));
     if (modifyDate) meta.modificationDate = toISO(String(modifyDate));
+
+    // Also expose ALL EXIF tags as a flat map for display
+    const exifAll: Record<string, string | number | boolean | null> = {};
+    for (const key of Object.keys(tags || {})) {
+      try {
+        const t: any = (tags as any)[key];
+        let value: unknown = undefined;
+        if (t && typeof t === 'object') {
+          value = typeof t.description !== 'undefined' ? t.description : t.value;
+        } else {
+          value = t;
+        }
+        // Normalize arrays and objects to readable strings
+        if (Array.isArray(value)) {
+          exifAll[key] = (value as any[]).map((v) => String(v)).join(', ');
+        } else if (value !== undefined && value !== null) {
+          exifAll[key] = (typeof value === 'object') ? JSON.stringify(value) : (value as any);
+        } else {
+          exifAll[key] = null;
+        }
+      } catch {
+        // ignore malformed fields
+      }
+    }
+    // Attach temporarily; callers can pick it and remove from metadata
+    (meta as any).__exifAll = exifAll;
 
     return meta;
   } catch (e) {

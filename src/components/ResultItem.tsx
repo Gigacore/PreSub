@@ -115,7 +115,7 @@ function ResultItem({ result }: ResultItemProps) {
           {(() => {
             const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
             // Do not show wordCount, words, or totalTime anywhere
-            const hiddenKeys: string[] = ['wordCount', 'words', 'totalTime'];
+            const hiddenKeys: string[] = ['wordCount', 'words', 'totalTime', 'exif'];
             const countKeys: string[] = ['words', 'slides', 'pages', 'numberOfSheets'];
             const dateKeys: string[] = ['creationDate', 'modificationDate'];
             // Content-derived keys we want to segregate
@@ -217,6 +217,36 @@ function ResultItem({ result }: ResultItemProps) {
           })()}
         </div>
       </div>
+
+      {/* EXIF Data Section */}
+      {(() => {
+        const exif = result.exif as Record<string, string | number | boolean | null> | undefined;
+        if (!exif || !Object.keys(exif).length) return null;
+        const entries = Object.entries(exif).sort((a, b) => a[0].localeCompare(b[0]));
+        return (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">EXIF Data</h3>
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Tag</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Value</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {entries.map(([k, v]) => (
+                    <tr key={k}>
+                      <td className="px-4 py-2 align-top text-xs whitespace-nowrap text-gray-700">{k}</td>
+                      <td className="px-4 py-2 align-top text-xs break-all text-gray-800">{v === null ? '-' : String(v)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Content Findings Section */}
       {(() => {
