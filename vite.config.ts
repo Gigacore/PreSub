@@ -37,6 +37,25 @@ export default defineConfig({
     }),
   ],
   base: "/PreSub/",
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy dependencies into dedicated chunks for better caching and smaller initial loads
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'vendor-react';
+            if (id.includes('pdfjs-dist')) return 'vendor-pdf';
+            if (id.includes('xlsx') || id.includes('mammoth')) return 'vendor-office';
+            if (id.includes('exifreader') || id.includes('jszip')) return 'vendor-media';
+            // Fallback: group other node_modules into a shared vendor chunk
+            return 'vendor';
+          }
+        },
+      },
+    },
+    // Raise the limit to reduce noisy warnings while keeping an eye on bundle sizes
+    chunkSizeWarningLimit: 1000,
+  },
   test: {
     globals: true,
     environment: 'jsdom',

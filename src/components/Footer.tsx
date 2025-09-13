@@ -2,7 +2,7 @@ function Footer() {
   return (
     <footer className="mx-auto max-w-7xl mt-12 text-center text-sm text-gray-500">
       <p>
-        PreSub is open source — view and contribute on{' '}
+        PreSub is open source — view on{' '}
         <a
           href="https://github.com/Gigacore/PreSub"
           target="_blank"

@@ -5,13 +5,13 @@ function Header() {
         <img
           src={import.meta.env.BASE_URL + 'assets/presub-logo.png'}
           alt="PreSub logo"
-          className="mx-auto h-20 sm:h-24 md:h-28 lg:h-32 w-auto"
+          className="mx-auto h-[64px] sm:h-[77px] md:h-[90px] lg:h-[102px] w-auto"
           loading="eager"
           decoding="async"
         />
       </h1>
       <p className="text-base sm:text-lg mt-2 text-gray-600 max-w-2xl mx-auto px-2">
-        Scan your documents securely in the browser—no data leaves your device.
+      Your research deserves a fair review. PreSub helps you stay anonymous, compliant, and confident. No data leaves your device.
       </p>
     </header>
   );
