@@ -1,4 +1,5 @@
 import { useDropzone } from 'react-dropzone';
+import type { FileError, Accept } from 'react-dropzone';
 import { useMemo, useState } from 'react';
 
 interface FileDropzoneProps {
@@ -8,8 +9,8 @@ interface FileDropzoneProps {
 function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
   const [message, setMessage] = useState<string | null>(null);
   
-  const accept = useMemo(() => {
-    const documentsOnly = {
+  const accept = useMemo<Accept>(() => {
+    const documentsOnly: Accept = {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -17,15 +18,51 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       'text/csv': ['.csv'],
       'text/markdown': ['.md', '.markdown'],
       'application/json': ['.json'],
-    } as const;
+    };
     return {
       ...documentsOnly,
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
       'image/svg+xml': ['.svg'],
       'image/tiff': ['.tif', '.tiff'],
-    } as const as any;
+    };
   }, []);
+
+  // Build a set of allowed file extensions for validation (lowercase, with leading dot)
+  const allowedExtensions = useMemo(() => {
+    const exts = new Set<string>();
+    Object.values(accept).forEach((arr) => {
+      arr.forEach((ext) => exts.add(ext.toLowerCase()));
+    });
+    return exts;
+  }, [accept]);
+
+  // Many touch devices restrict pickers to images if the input has an accept attr including images.
+  // To let users browse all files on mobile, drop the accept attribute for touch devices and validate in code.
+  const shouldRelaxAccept = useMemo(() => {
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    // iPadOS 13+ sometimes reports as Macintosh; detect via touch points
+    const isIOSLike = /iPhone|iPad|iPod/i.test(ua) || (ua.includes('Macintosh') && (navigator as any).maxTouchPoints > 1);
+    const isCoarsePointer = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false;
+    return isAndroid || isIOSLike || isCoarsePointer;
+  }, []);
+
+  const validateFile = (file: File): FileError | null => {
+    const name = file.name || '';
+    const lower = name.toLowerCase();
+    const dot = lower.lastIndexOf('.');
+    const ext = dot >= 0 ? lower.slice(dot) : '';
+    if (!allowedExtensions.has(ext)) {
+      return {
+        code: 'file-invalid-type',
+        message: 'Unsupported file type. Please select a supported format.',
+      } as FileError;
+    }
+    return null;
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
@@ -42,7 +79,9 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
         setMessage('Some files were rejected due to type restrictions.');
       }
     },
-    accept,
+    // Only set accept on non-touch devices to avoid iOS/Android limiting to images view
+    accept: shouldRelaxAccept ? undefined : accept,
+    validator: validateFile,
   });
 
   return (
@@ -59,7 +98,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
         <div className="flex flex-col items-center">
           <span aria-hidden="true" className="material-symbols-outlined text-gray-500 text-5xl sm:text-6xl">upload_file</span>
           <p className="mt-4 text-base sm:text-lg font-semibold text-gray-700">
-            {isDragActive ? 'Drop the files here ...' : 'Drop files here or click to select'}
+            {isDragActive ? 'Drop the files here ...' : 'Drop files here or tap to select'}
           </p>
           <p className="text-sm text-gray-600 mb-6 px-2">
             PreSub can make mistakes — please double-check important information.

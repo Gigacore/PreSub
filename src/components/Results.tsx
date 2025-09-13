@@ -4,13 +4,14 @@ import ResultItem from './ResultItem';
 interface ResultsProps {
   results: ProcessedFile[];
   onClear: () => void;
+  onRemove: (index: number) => void;
 }
 
-function Results({ results, onClear }: ResultsProps) {
+function Results({ results, onClear, onRemove }: ResultsProps) {
   return (
     <div className="mt-8 space-y-6" role="status">
       {results.map((result, index) => (
-        <ResultItem key={index} result={result} />
+        <ResultItem key={index} result={result} onRemove={() => onRemove(index)} />
       ))}
       <div className="mt-2 flex justify-start">
         <button

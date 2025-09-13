@@ -3,6 +3,7 @@ import type { ProcessedFile } from '../App';
 
 interface ResultItemProps {
   result: ProcessedFile;
+  onRemove?: () => void;
 }
 
 function formatLabel(key: string) {
@@ -26,7 +27,7 @@ function isNonEmpty(value: unknown) {
   return true;
 }
 
-function ResultItem({ result }: ResultItemProps) {
+function ResultItem({ result, onRemove }: ResultItemProps) {
   // Feature flag: toggle EXIF table/expand UI without removing code
   const ENABLE_EXIF_TABLE = false as const;
   const [ignoredKeys, setIgnoredKeys] = useState<Set<string>>(new Set());
@@ -80,16 +81,29 @@ function ResultItem({ result }: ResultItemProps) {
           <span aria-hidden="true" className="material-symbols-outlined text-red-500 mt-0.5">insert_drive_file</span>
           <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 break-words">{result.fileName}</h2>
         </div>
-        {result.previewUrl && (
-          <img
-            src={result.previewUrl}
-            alt={result.fileName}
-            className="w-24 h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
-            loading="lazy"
-            onClick={() => setPreviewOpen(true)}
-            title="Click to preview"
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {result.previewUrl && (
+            <img
+              src={result.previewUrl}
+              alt={result.fileName}
+              className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+              loading="lazy"
+              onClick={() => setPreviewOpen(true)}
+              title="Click to preview"
+            />
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`Remove ${result.fileName}`}
+              title="Remove"
+              className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined">delete</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Potential Issues */}

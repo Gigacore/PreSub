@@ -69,6 +69,16 @@ function App() {
     setResults([]);
   };
 
+  const removeResultAt = (index: number) => {
+    setResults((prev) => {
+      const target = prev[index];
+      try {
+        if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      } catch {}
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   return (
     <div className="min-h-screen font-sans p-4 sm:p-6 md:p-8">
       <main className="mx-auto max-w-6xl">
@@ -79,7 +89,7 @@ function App() {
             <p className="text-center mt-4 text-gray-600">Processing files...</p>
           )}
           {results.length > 0 && (
-            <Results results={results} onClear={clearResults} />
+            <Results results={results} onClear={clearResults} onRemove={removeResultAt} />
           )}
         </div>
       </main>
