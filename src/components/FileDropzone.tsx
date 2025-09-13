@@ -96,7 +96,7 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center">
-          <span aria-hidden="true" className="material-symbols-outlined text-gray-500 text-5xl sm:text-6xl">upload_file</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-gray-500 text-5xl sm:text-6xl">cloud_upload</span>
           <p className="mt-4 text-base sm:text-lg font-semibold text-gray-700">
             {isDragActive ? 'Drop the files here ...' : 'Drop files here or tap to select'}
           </p>

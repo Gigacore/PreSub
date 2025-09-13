@@ -1,6 +1,6 @@
 function Header() {
   return (
-    <header className="text-center text-gray-800 mb-8 sm:mb-10">
+    <header className="text-center mb-8 sm:mb-10">
       <h1 className="tracking-tight">
         <img
           src={import.meta.env.BASE_URL + 'assets/presub-logo.png'}

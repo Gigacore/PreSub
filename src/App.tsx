@@ -80,18 +80,31 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen font-sans p-4 sm:p-6 md:p-8">
-      <main className="mx-auto max-w-6xl">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
+    <div className={`min-h-screen font-sans ${results.length === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+      {/* Header: full-width white background */}
+      <div className="bg-white w-full">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <Header />
-          <FileDropzone onFilesSelected={handleFiles} />
-          {isLoading && (
-            <p className="text-center mt-4 text-gray-600">Processing files...</p>
-          )}
-          {results.length > 0 && (
-            <Results results={results} onClear={clearResults} onRemove={removeResultAt} />
-          )}
         </div>
+      </div>
+
+      {/* File drop: full-width white background (no border) */}
+      <div className="bg-white w-full">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="mx-auto w-full md:w-[70%]">
+            <FileDropzone onFilesSelected={handleFiles} />
+            {isLoading && (
+              <p className="text-center mt-4 text-gray-600">Processing files...</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Results container */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {results.length > 0 && (
+          <Results results={results} onClear={clearResults} onRemove={removeResultAt} />
+        )}
       </main>
       <Footer />
     </div>

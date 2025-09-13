@@ -73,20 +73,44 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
     return (result.potentialIssues || []).filter((iss) => !ignoredTypes.has(iss.type));
   }, [ignoredKeys, result.potentialIssues]);
 
+  const fileNameLower = result.fileName.toLowerCase();
+  const fileType = String((result.metadata as any).fileType || '');
+  const getFileIcon = () => {
+    if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png') || fileNameLower.endsWith('.svg') || fileNameLower.endsWith('.tif') || fileNameLower.endsWith('.tiff') || fileType.toLowerCase().includes('image')) {
+      return { icon: 'image', color: 'text-gray-500' } as const;
+    }
+    if (fileNameLower.endsWith('.ppt') || fileNameLower.endsWith('.pptx') || fileType.toLowerCase().includes('powerpoint')) {
+      return { icon: 'slideshow', color: 'text-gray-500' } as const;
+    }
+    if (fileNameLower.endsWith('.xlsx') || fileNameLower.endsWith('.xls') || fileType.toLowerCase().includes('excel') || fileType.toLowerCase().includes('sheet')) {
+      return { icon: 'table', color: 'text-gray-500' } as const;
+    }
+    if (fileNameLower.endsWith('.json')) {
+      return { icon: 'code', color: 'text-gray-500' } as const;
+    }
+    if (fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.md') || fileNameLower.endsWith('.markdown')) {
+      return { icon: 'text_snippet', color: 'text-gray-500' } as const;
+    }
+    // default doc-like icon
+    return { icon: 'description', color: 'text-gray-500' } as const;
+  };
+
+  const headerIcon = getFileIcon();
+
   return (
-    <div className="bg-white rounded-2xl">
-      {/* File Name */}
-      <div className="flex items-start justify-between gap-3 mb-6 border-b pb-4">
-        <div className="flex items-start gap-3">
-          <span aria-hidden="true" className="material-symbols-outlined text-red-500 mt-0.5">insert_drive_file</span>
-          <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 break-words">{result.fileName}</h2>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Card Header */}
+      <div className="p-4 flex items-center justify-between bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center gap-3 min-w-0">
+          <span aria-hidden className={`material-symbols-outlined ${headerIcon.color}`}>{headerIcon.icon}</span>
+          <h2 className="font-medium text-gray-800 truncate" title={result.fileName}>{result.fileName}</h2>
         </div>
         <div className="flex items-center gap-2">
           {result.previewUrl && (
             <img
               src={result.previewUrl}
               alt={result.fileName}
-              className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+              className="h-10 w-10 rounded-md object-cover border border-gray-200 cursor-pointer"
               loading="lazy"
               onClick={() => setPreviewOpen(true)}
               title="Click to preview"
@@ -98,22 +122,23 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               onClick={onRemove}
               aria-label={`Remove ${result.fileName}`}
               title="Remove"
-              className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
             >
-              <span aria-hidden="true" className="material-symbols-outlined">delete</span>
+              <span aria-hidden className="material-symbols-outlined">delete</span>
             </button>
           )}
         </div>
       </div>
+      <div className="p-6 space-y-6">
 
       {/* Potential Issues */}
       {!!filteredIssues.length && (
-        <div className="bg-red-100 p-4 rounded-xl border border-red-300 ring-2 ring-red-200 mb-6">
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
           <div className="flex items-center">
-            <span aria-hidden="true" className="material-symbols-outlined text-red-600 mr-3">error</span>
+            <span aria-hidden className="material-symbols-outlined text-red-600 mr-3">error</span>
             <div>
               <p className="text-sm font-medium text-red-800">POTENTIAL ISSUE</p>
-              <ul className="text-sm text-red-900 list-disc ml-5">
+              <ul className="text-sm text-red-700 list-disc ml-5">
                 {filteredIssues.map((iss, idx) => (
                   <li key={idx}>
                     <span className="font-semibold">{iss.type}</span>: {iss.value}
@@ -135,12 +160,12 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
         const hasContentSignals = emailsCount > 0 || urlsCount > 0;
         if (!hasContentSignals) return null;
         return (
-          <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 ring-2 ring-blue-100 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-start">
-              <span aria-hidden="true" className="material-symbols-outlined text-blue-600 mr-3">info</span>
+              <span aria-hidden className="material-symbols-outlined text-blue-600 mr-3">lightbulb</span>
               <div>
                 <p className="text-sm font-medium text-blue-800">Review Suggested</p>
-                <p className="text-sm text-blue-900">
+                <p className="text-sm text-blue-700">
                   {`Found ${emailsCount} email${emailsCount === 1 ? '' : 's'} and ${urlsCount} URL${urlsCount === 1 ? '' : 's'} in the content. Please review details below.`}
                 </p>
               </div>
@@ -150,8 +175,8 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
       })()}
 
       {/* Metadata Section */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Metadata</h3>
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Metadata</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {(() => {
             const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
@@ -536,6 +561,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
           </div>
         );
       })()}
+      </div>
     </div>
   );
 }
