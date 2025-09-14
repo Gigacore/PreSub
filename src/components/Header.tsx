@@ -1,18 +1,20 @@
 function Header() {
   return (
     <header className="text-center mb-6 sm:mb-8 md:mb-10">
-      <h1 className="tracking-tight">
-        <img
-          src={import.meta.env.BASE_URL + 'assets/presub-logo.png'}
-          alt="PreSub logo"
-          className="mx-auto max-w-full h-12 sm:h-16 md:h-20 lg:h-24 w-auto"
-          loading="eager"
-          decoding="async"
-          fetchpriority="high"
-        />
+      <img
+        src={import.meta.env.BASE_URL + 'assets/presub-logo.png'}
+        alt=""
+        className="mx-auto max-w-full h-12 sm:h-16 md:h-20 lg:h-24 w-auto"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+        aria-hidden="true"
+      />
+      <h1 className="tracking-tight text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900">
+        PreSub
       </h1>
       <p className="mt-3 sm:mt-4 text-gray-600 mx-auto max-w-2xl text-sm md:text-base lg:text-lg leading-relaxed">
-        Detect and fix issues that lead to avoidable rejections. Saves time under submission pressure. Built for researchers to stay anonymous, compliant, and confident. 
+        Detect and fix issues that lead to avoidable rejections. Saves time under submission pressure. Built for researchers to stay anonymous, compliant, and confident.
         <span className="block text-xs sm:text-sm text-gray-700 mt-2">
           <span className="inline-flex font-medium">
             <svg

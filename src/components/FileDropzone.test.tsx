@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import FileDropzone from './FileDropzone';
 import { useDropzone } from 'react-dropzone';
@@ -58,7 +58,9 @@ describe('FileDropzone', () => {
       };
     });
     render(<FileDropzone onFilesSelected={() => {}} />);
-    onDropRejected([{ file: new File([''], 'test.txt'), errors: [] }]);
+    act(() => {
+      onDropRejected([{ file: new File([''], 'test.txt'), errors: [] }]);
+    });
     await waitFor(() => {
       expect(screen.getByText(/some files were rejected/i)).toBeInTheDocument();
     });
