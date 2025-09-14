@@ -26,7 +26,7 @@ describe('ResultItem', () => {
 
   it('shows potential issues', () => {
     render(<ResultItem result={mockResult} />);
-    expect(screen.getByText('POTENTIAL ISSUE')).toBeInTheDocument();
+    expect(screen.getByText(/Potential Issues/)).toBeInTheDocument();
     expect(screen.getByText(/AUTHOR FOUND/)).toBeInTheDocument();
   });
 

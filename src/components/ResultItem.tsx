@@ -126,10 +126,11 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
       <div className="p-4 flex flex-wrap items-center justify-between gap-2 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {isImage && result.previewUrl ? (
-            <div
-              className="relative group h-10 w-10 shrink-0"
+            <button
+              type="button"
+              aria-label={`Preview ${result.fileName}`}
               onClick={() => setPreviewOpen(true)}
-              title="Click to preview"
+              className="relative group h-10 w-10 shrink-0"
             >
               <img
                 src={result.previewUrl}
@@ -140,7 +141,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               <div className="pointer-events-none absolute inset-0 rounded-md bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span aria-hidden className="material-symbols-outlined text-white text-base">open_in_full</span>
               </div>
-            </div>
+            </button>
           ) : (
             <span aria-hidden className={`material-symbols-outlined ${headerIcon.color}`}>{headerIcon.icon}</span>
           )}
@@ -148,10 +149,11 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {result.previewUrl && !isImage && (
-            <div
-              className="relative group h-10 w-10"
+            <button
+              type="button"
+              aria-label={`Preview ${result.fileName}`}
               onClick={() => setPreviewOpen(true)}
-              title="Click to preview"
+              className="relative group h-10 w-10"
             >
               <img
                 src={result.previewUrl}
@@ -162,7 +164,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               <div className="pointer-events-none absolute inset-0 rounded-md bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span aria-hidden className="material-symbols-outlined text-white text-base">open_in_full</span>
               </div>
-            </div>
+            </button>
           )}
           {onRemove && (
             <button
@@ -346,6 +348,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
             <button
               type="button"
               aria-expanded={exifOpen}
+              aria-controls="exif-table"
               onClick={() => setExifOpen((v) => !v)}
               className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 px-4 py-3 mb-3 text-left"
             >
@@ -357,7 +360,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               <span aria-hidden="true" className={`material-symbols-outlined text-gray-600 transition-transform ${exifOpen ? 'rotate-180' : ''}`}>expand_more</span>
             </button>
             {exifOpen && (
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <div id="exif-table" className="overflow-x-auto rounded-xl border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -491,7 +494,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                 </div>
               </div>
               {/* Mobile: card list */}
-              <div className="md:hidden space-y-2">
+              <ul className="md:hidden space-y-2">
                 {filteredRows.map((r, i) => {
                   const id = `${r.type}:${r.value}:${r.pages.join('|')}`;
                   const checked = checkedFindings.has(id);
@@ -503,10 +506,9 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                       return next;
                     });
                   return (
-                    <div
+                    <li
                       key={i}
                       className={`bg-white rounded-lg border border-gray-200 p-3 ${checked ? 'opacity-70' : ''}`}
-                      role="listitem"
                     >
                       <div className="flex items-start gap-3">
                         <input
@@ -537,10 +539,10 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
 
               {/* Desktop/tablet: table view */}
               <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
