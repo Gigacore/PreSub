@@ -8,7 +8,7 @@ function Header() {
           className="mx-auto max-w-full h-12 sm:h-16 md:h-20 lg:h-24 w-auto"
           loading="eager"
           decoding="async"
-          fetchpriority="high"
+          fetchPriority="high"
         />
       </h1>
       <p className="mt-3 sm:mt-4 text-gray-600 mx-auto max-w-2xl text-sm md:text-base lg:text-lg leading-relaxed">
