@@ -88,6 +88,8 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
     <>
       <div
         {...getRootProps()}
+        tabIndex={0}
+        aria-labelledby="dropzone-label"
         className={`border-2 border-dashed rounded-2xl p-6 sm:p-10 md:p-12 text-center cursor-pointer mb-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
           isDragActive
             ? 'border-blue-500 bg-blue-50'
@@ -97,13 +99,13 @@ function FileDropzone({ onFilesSelected }: FileDropzoneProps) {
         <input {...getInputProps()} />
         <div className="flex flex-col items-center">
           <span aria-hidden="true" className="material-symbols-outlined text-gray-500 text-5xl sm:text-6xl">cloud_upload</span>
-          <p className="mt-4 text-base sm:text-lg font-semibold text-gray-700">
+          <p id="dropzone-label" className="mt-4 text-base sm:text-lg font-semibold text-gray-700">
             {isDragActive ? 'Drop the files here ...' : 'Drop files here or tap to select'}
           </p>
           <p className="text-sm text-gray-600 mb-6 px-2">
             PreSub can make mistakes — please double-check important information.
           </p>
-          <ul className="flex justify-center flex-wrap gap-2 sm:gap-3" aria-label="Supported formats" role="list">
+          <ul className="flex justify-center flex-wrap gap-2 sm:gap-3" aria-label="Supported formats">
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-pink-100 text-pink-700 ring-1 ring-inset ring-pink-200">PDF</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200">Word</span></li>
             <li><span className="inline-flex items-center rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium bg-green-100 text-green-700 ring-1 ring-inset ring-green-200">Excel</span></li>

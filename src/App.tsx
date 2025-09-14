@@ -94,7 +94,9 @@ function App() {
           <div className="mx-auto w-full md:w-[70%]">
             <FileDropzone onFilesSelected={handleFiles} />
             {isLoading && (
-              <p className="text-center mt-4 text-gray-600">Processing files...</p>
+              <div aria-live="polite" role="status" className="text-center mt-4 text-gray-600">
+                <p>Processing files...</p>
+              </div>
             )}
           </div>
         </div>
