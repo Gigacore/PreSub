@@ -10,3 +10,7 @@ binding = "ASSETS"
 [build]
 command = "npm run build:workers"
 
+[[routes]]
+pattern = "presub.app"
+custom_domain = true
+

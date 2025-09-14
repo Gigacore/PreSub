@@ -123,8 +123,8 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Card Header */}
-      <div className="p-4 flex items-center justify-between bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="p-4 flex flex-wrap items-center justify-between gap-2 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {isImage && result.previewUrl ? (
             <div
               className="relative group h-10 w-10 shrink-0"
@@ -146,7 +146,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
           )}
           <h2 className="font-medium text-gray-800 truncate" title={result.fileName}>{result.fileName}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {result.previewUrl && !isImage && (
             <div
               className="relative group h-10 w-10"

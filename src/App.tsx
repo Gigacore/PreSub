@@ -80,7 +80,7 @@ function App() {
   };
 
   return (
-    <div className={`min-h-screen font-sans ${results.length === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen font-sans pb-safe pt-safe ${results.length === 0 ? 'bg-white' : 'bg-gray-50'}`}>
       {/* Header: full-width white background */}
       <div className="bg-white w-full">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

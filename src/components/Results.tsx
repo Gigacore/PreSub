@@ -10,7 +10,8 @@ interface ResultsProps {
 function Results({ results, onClear, onRemove }: ResultsProps) {
   return (
     <div className="space-y-6" role="status">
-      <div className="flex items-center justify-between">
+      {/* Make header stack on small screens to avoid overflow */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm font-medium text-gray-700">Results ({results.length})</p>
         <button
           onClick={onClear}
