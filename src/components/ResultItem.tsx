@@ -137,6 +137,12 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
     return `https://${v}`;
   };
 
+  // Smooth scroll helper for in-card banners
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Card Header */}
@@ -229,7 +235,13 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
         const hasContentSignals = emailsCount > 0 || urlsCount > 0;
         if (!hasContentSignals) return null;
         return (
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <button
+            type="button"
+            onClick={() => scrollToSection('content-findings')}
+            aria-label="Jump to Content Findings"
+            title="Jump to Content Findings"
+            className="w-full text-left bg-blue-50 p-4 rounded-lg border border-blue-200 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 cursor-pointer"
+          >
             <div className="flex items-start">
               <span aria-hidden className="material-symbols-outlined text-blue-600 mr-3">lightbulb</span>
               <div>
@@ -238,14 +250,21 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                   {`Found ${emailsCount} email${emailsCount === 1 ? '' : 's'} and ${urlsCount} URL${urlsCount === 1 ? '' : 's'} in the content. Please review details below.`}
                 </p>
               </div>
+              <span aria-hidden className="ml-auto material-symbols-outlined text-blue-600">south</span>
             </div>
-          </div>
+          </button>
         );
       })()}
 
       {/* Research Signals Banner (moved to top with other banners) */}
       {hasResearchSignals && (
-        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+        <button
+          type="button"
+          onClick={() => scrollToSection('research-signals')}
+          aria-label="Jump to Research Signals"
+          title="Jump to Research Signals"
+          className="w-full text-left bg-emerald-50 p-4 rounded-lg border border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500 cursor-pointer"
+        >
           <div className="flex items-start">
             <span aria-hidden className="material-symbols-outlined text-emerald-600 mr-3">science</span>
             <div>
@@ -254,8 +273,9 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
                 {`${ackDetected ? 'Acknowledgements' : ''}${ackDetected && (fundingDetected || affiliationsDetected) ? ', ' : ''}${fundingDetected ? 'Funding' : ''}${(ackDetected || fundingDetected) && affiliationsDetected ? ', ' : ''}${affiliationsDetected ? 'Affiliations' : ''} present. See details below.`}
               </p>
             </div>
+            <span aria-hidden className="ml-auto material-symbols-outlined text-emerald-600">south</span>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Metadata Section */}
@@ -512,7 +532,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
               })
             : rows;
           return (
-            <div className="mb-2">
+            <div id="content-findings" className="mb-2 scroll-mt-16">
               {/* Divider above Content Findings section with padding */}
               <div className="my-4 h-px bg-gray-200" />
               <div className="mb-2 flex items-center justify-between gap-3">
@@ -692,7 +712,7 @@ function ResultItem({ result, onRemove }: ResultItemProps) {
 
       {/* Research Signals Section */}
       {(hasResearchSignals || researchFindings) && (
-        <div>
+        <div id="research-signals" className="scroll-mt-16">
           <h3 className="text-lg font-medium text-gray-900 mb-3">Research Signals</h3>
           <div className="space-y-4">
             {/* Acknowledgements with actions */}
