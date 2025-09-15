@@ -18,6 +18,11 @@ export interface ProcessedFile {
     emails: Array<{ value: string; pages: number[] }>;
     urls: Array<{ value: string; pages: number[] }>;
   };
+  // Structured research findings for acknowledgements and affiliations with locations
+  researchFindings?: {
+    acknowledgements: Array<{ text: string; pages: number[] }>;
+    affiliations: Array<{ text: string; pages: number[] }>;
+  };
   // Full EXIF map for image files (all tags flattened to human-readable values)
   exif?: Record<string, string | number | boolean | null>;
   // Object URL for image previews

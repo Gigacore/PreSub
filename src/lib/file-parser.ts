@@ -5,6 +5,88 @@ import JSZip from 'jszip';
 import type { ProcessedFile } from '../App';
 import * as ExifReader from 'exifreader';
 
+// ---- Research signals (Acknowledgements / Funding / Affiliations) ----
+type ResearchSignals = {
+  acknowledgementsDetected: boolean;
+  acknowledgementsExcerpt?: string;
+  fundingDetected: boolean;
+  fundingMentions?: string[];
+  grantIds?: string[];
+  affiliationsDetected: boolean;
+  affiliationsGuesses?: string[];
+};
+
+const ACK_HEADERS_RE = /\b(acknowledg(?:e)?ments?|acknowledgment|acknowledgements)\b/i;
+const ACK_PHRASES_RE = /\b(we\s+(?:thank|acknowledge)|i\s+thank|the\s+authors\s+(?:thank|acknowledge))\b/i;
+const FUND_HEADER_RE = /\b(funding|funding\s+(?:statement|information|sources))\b/i;
+const FUND_PHRASES_RE = /\b(this\s+(?:work|research)\s+(?:was\s+)?(?:supported|funded|sponsored)\s+by|we\s+(?:acknowledge|thank).{0,60}\b(?:funding|support)|\b(?:grant|award|contract)\s*(?:no\.|number|#)?\s*[:\-]?\s*[A-Z]{0,4}\d[\w\-/.]{3,}\b|\b(NIH|NSF|ERC|Horizon\s*2020|Wellcome\s*Trust|UKRI|DFG|NSFC|DARPA|ONR|DoD|DOE|EU|NERC|EPSRC|NIHR)\b)/i;
+const GRANT_ID_RE = /\b(?:grant|award|contract)\s*(?:no\.|number|#)?\s*[:\-]?\s*([A-Z]{0,4}\d[\w\-/.]{3,})/gi;
+const AFFIL_HEADER_RE = /\b(affiliation|affiliations|author\s+information)\b/i;
+const AFFIL_CUES_RE = /\b(University|College|Institute|Department|Laborator(?:y|ies)|Hospital|Center|Centre|School|Faculty|Company|Inc\.|Ltd\.|LLC|GmbH|CNRS|Max\s*Planck|Oxford|Cambridge|Harvard|Stanford|MIT|Caltech|ETH|Tsinghua|Peking|National\s+Laboratory)\b/i;
+
+function extractContextSnippet(text: string, index: number, window = 220): string {
+  const start = Math.max(0, index - Math.floor(window / 2));
+  const end = Math.min(text.length, index + Math.floor(window / 2));
+  const snippet = text.slice(start, end).replace(/\s+/g, ' ').trim();
+  return (start > 0 ? '… ' : '') + snippet + (end < text.length ? ' …' : '');
+}
+
+function scanResearchSignals(rawText: string): ResearchSignals {
+  const text = (rawText || '').replace(/\u00AD/g, '').replace(/\s+/g, ' '); // soft hyphens, collapse spaces
+  const signals: ResearchSignals = {
+    acknowledgementsDetected: false,
+    fundingDetected: false,
+    affiliationsDetected: false,
+  };
+
+  // Acknowledgements
+  let m = text.match(ACK_HEADERS_RE) || text.match(ACK_PHRASES_RE);
+  if (m && m.index !== undefined) {
+    signals.acknowledgementsDetected = true;
+    signals.acknowledgementsExcerpt = extractContextSnippet(text, m.index);
+  }
+
+  // Funding
+  const fundingHits: string[] = [];
+  let foundIdx = -1;
+  const fundRe = new RegExp(FUND_PHRASES_RE.source, 'gi');
+  let fm: RegExpExecArray | null;
+  while ((fm = fundRe.exec(text)) !== null) {
+    const idx = fm.index || 0;
+    if (foundIdx === -1) foundIdx = idx;
+    fundingHits.push(extractContextSnippet(text, idx));
+  }
+  if (fundingHits.length) {
+    signals.fundingDetected = true;
+    signals.fundingMentions = Array.from(new Set(fundingHits)).slice(0, 6);
+  }
+  const grantIds: string[] = [];
+  let gm: RegExpExecArray | null;
+  while ((gm = GRANT_ID_RE.exec(text)) !== null) {
+    if (gm[1]) grantIds.push(gm[1]);
+  }
+  if (grantIds.length) signals.grantIds = Array.from(new Set(grantIds)).slice(0, 10);
+
+  // Affiliations: bias to the beginning (author block)
+  const firstChunk = text.slice(0, Math.min(15000, text.length));
+  const sentences = firstChunk.split(/(?<=[.!?])\s+/);
+  const affs = sentences.filter((s) => AFFIL_HEADER_RE.test(s) || AFFIL_CUES_RE.test(s));
+  if (affs.length) {
+    signals.affiliationsDetected = true;
+    signals.affiliationsGuesses = Array.from(new Set(affs.map((s) => s.replace(/\s+/g, ' ').trim()))).slice(0, 8);
+  }
+
+  return signals;
+}
+
+// Helper for accumulating research findings with locations
+function addFinding(map: Map<string, Set<number>>, key: string, page: number) {
+  const k = key.replace(/\s+/g, ' ').trim();
+  if (!k) return;
+  if (!map.has(k)) map.set(k, new Set());
+  map.get(k)!.add(page);
+}
+
 // Helper: treat any metadata value containing "LaTeX" (any case) as non-issue
 function containsLatex(value: unknown): boolean {
   return typeof value === 'string' && /latex/i.test(value);
@@ -52,6 +134,10 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
   try {
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
+    // Research findings accumulators (per page)
+    const ackMap = new Map<string, Set<number>>();
+    const affMap = new Map<string, Set<number>>();
+    const fullTextParts: string[] = [];
 
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -59,6 +145,25 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
       const text = (tc.items || [])
         .map((it: any) => (typeof it.str === 'string' ? it.str : ''))
         .join(' ');
+      if (text) fullTextParts.push(text);
+
+      // Research: Acknowledgements (by sentence and header/phrases)
+      if (text) {
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        sentences.forEach((s) => {
+          if (ACK_HEADERS_RE.test(s) || ACK_PHRASES_RE.test(s)) {
+            addFinding(ackMap, s, p);
+          }
+        });
+        // Fallback: if header phrase appears but not captured as sentence, add context
+        const mAck = text.match(ACK_HEADERS_RE) || text.match(ACK_PHRASES_RE);
+        if (mAck && mAck.index !== undefined) {
+          addFinding(ackMap, extractContextSnippet(text, mAck.index), p);
+        }
+        // Research: Affiliations (by sentence and cues)
+        const affSentences = text.split(/(?<=[.!?])\s+/).filter((s: string) => AFFIL_HEADER_RE.test(s) || AFFIL_CUES_RE.test(s));
+        affSentences.forEach((s) => addFinding(affMap, s, p));
+      }
 
       scanTextForEmailsAndUrls(text, (value, kind) => {
         if (kind === 'email') {
@@ -89,6 +194,34 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+
+    // Research signals + findings
+    const fullText = fullTextParts.join('\n');
+    const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+    const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+    if (ackItems.length || affItems.length) {
+      (processedFile as any).researchFindings = {
+        acknowledgements: ackItems,
+        affiliations: affItems,
+      };
+    }
+    if (fullText && fullText.replace(/\s+/g, '').length > 20) {
+      const signals = scanResearchSignals(fullText);
+      // Override detection booleans based on findings to keep UI consistent
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0 || signals.acknowledgementsDetected;
+      if ((processedFile.metadata as any).acknowledgementsDetected) {
+        const first = ackItems[0]?.text || signals.acknowledgementsExcerpt;
+        if (first) (processedFile.metadata as any).acknowledgementsExcerpt = first;
+      }
+      (processedFile.metadata as any).fundingDetected = signals.fundingDetected;
+      if (signals.fundingMentions?.length) (processedFile.metadata as any).fundingMentions = signals.fundingMentions;
+      if (signals.grantIds?.length) (processedFile.metadata as any).grantIds = signals.grantIds;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0 || signals.affiliationsDetected;
+      if ((processedFile.metadata as any).affiliationsDetected) {
+        const guesses = affItems.length ? affItems.map((i) => i.text) : signals.affiliationsGuesses || [];
+        if (guesses.length) (processedFile.metadata as any).affiliationsGuesses = Array.from(new Set(guesses)).slice(0, 8);
+      }
     }
   } catch (e) {
     // Text extraction might fail for scanned/image-only PDFs; ignore gracefully
@@ -259,6 +392,43 @@ async function parseDocx(file: File): Promise<ProcessedFile> {
           urls: urlList.map((u) => ({ value: u, pages: [1] })),
         };
       }
+      // Research signals and findings from full text
+      if (rawText && rawText.replace(/\s+/g, '').length > 20) {
+        const signals = scanResearchSignals(rawText);
+
+        // Build findings using line numbers (best effort)
+        const ackMap = new Map<string, Set<number>>();
+        const affMap = new Map<string, Set<number>>();
+        const lines = rawText.split(/\r?\n/);
+        lines.forEach((line, idx) => {
+          const page = idx + 1; // treat line index as page/line marker
+          if (!line.trim()) return;
+          if (ACK_HEADERS_RE.test(line) || ACK_PHRASES_RE.test(line)) addFinding(ackMap, line, page);
+          if (AFFIL_HEADER_RE.test(line) || AFFIL_CUES_RE.test(line)) addFinding(affMap, line, page);
+        });
+        const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+        const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+        if (ackItems.length || affItems.length) {
+          (processedFile as any).researchFindings = {
+            acknowledgements: ackItems,
+            affiliations: affItems,
+          };
+        }
+
+        (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0 || signals.acknowledgementsDetected;
+        if ((processedFile.metadata as any).acknowledgementsDetected) {
+          const first = ackItems[0]?.text || signals.acknowledgementsExcerpt;
+          if (first) (processedFile.metadata as any).acknowledgementsExcerpt = first;
+        }
+        (processedFile.metadata as any).fundingDetected = signals.fundingDetected;
+        if (signals.fundingMentions?.length) (processedFile.metadata as any).fundingMentions = signals.fundingMentions;
+        if (signals.grantIds?.length) (processedFile.metadata as any).grantIds = signals.grantIds;
+        (processedFile.metadata as any).affiliationsDetected = affItems.length > 0 || signals.affiliationsDetected;
+        if ((processedFile.metadata as any).affiliationsDetected) {
+          const guesses = affItems.length ? affItems.map((i) => i.text) : signals.affiliationsGuesses || [];
+          if (guesses.length) (processedFile.metadata as any).affiliationsGuesses = Array.from(new Set(guesses)).slice(0, 8);
+        }
+      }
     } catch (e) {
       console.warn('DOCX content scan skipped:', e);
     }
@@ -307,6 +477,8 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
   try {
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
+    const ackMap = new Map<string, Set<number>>();
+    const affMap = new Map<string, Set<number>>();
 
     const sheetNames = workbook.SheetNames;
     sheetNames.forEach((name, idx) => {
@@ -329,6 +501,10 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
               urlPages.get(value)!.add(page);
             }
           });
+          // Research findings
+          const t = String(textVal);
+          if (ACK_HEADERS_RE.test(t) || ACK_PHRASES_RE.test(t)) addFinding(ackMap, t, page);
+          if (AFFIL_HEADER_RE.test(t) || AFFIL_CUES_RE.test(t)) addFinding(affMap, t, page);
         }
 
         // Hyperlinks on cells (SheetJS puts them in cell.l)
@@ -350,6 +526,9 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
                 urlPages.get(value)!.add(page);
               }
             });
+            const lt = String(link);
+            if (ACK_HEADERS_RE.test(lt) || ACK_PHRASES_RE.test(lt)) addFinding(ackMap, lt, page);
+            if (AFFIL_HEADER_RE.test(lt) || AFFIL_CUES_RE.test(lt)) addFinding(affMap, lt, page);
           }
         }
       }
@@ -364,6 +543,19 @@ async function parseXlsx(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+    // Research findings + metadata flags
+    const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+    const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+    if (ackItems.length || affItems.length) {
+      (processedFile as any).researchFindings = {
+        acknowledgements: ackItems,
+        affiliations: affItems,
+      };
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0;
+      if (ackItems.length) (processedFile.metadata as any).acknowledgementsExcerpt = ackItems[0].text;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0;
+      if (affItems.length) (processedFile.metadata as any).affiliationsGuesses = affItems.map((i) => i.text).slice(0, 8);
     }
   } catch (e) {
     console.warn('XLSX content scan skipped:', e);
@@ -401,6 +593,8 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
     const zip = await JSZip.loadAsync(arrayBuffer);
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
+    const ackMap = new Map<string, Set<number>>();
+    const affMap = new Map<string, Set<number>>();
 
     // Collect slide files and sort by slide number
     const slidePaths = Object.keys(zip.files)
@@ -435,6 +629,12 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
               urlPages.get(value)!.add(num);
             }
           });
+          // Research findings: split sentences for clearer items
+          const sentences = joined.split(/(?<=[.!?])\s+/);
+          sentences.forEach((s) => {
+            if (ACK_HEADERS_RE.test(s) || ACK_PHRASES_RE.test(s)) addFinding(ackMap, s, num);
+            if (AFFIL_HEADER_RE.test(s) || AFFIL_CUES_RE.test(s)) addFinding(affMap, s, num);
+          });
         }
       }
 
@@ -465,6 +665,8 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
                 urlPages.get(value)!.add(num);
               }
             });
+            if (ACK_HEADERS_RE.test(target) || ACK_PHRASES_RE.test(target)) addFinding(ackMap, target, num);
+            if (AFFIL_HEADER_RE.test(target) || AFFIL_CUES_RE.test(target)) addFinding(affMap, target, num);
           }
         }
       }
@@ -479,6 +681,19 @@ async function parsePptx(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+    // Research findings + metadata flags
+    const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+    const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+    if (ackItems.length || affItems.length) {
+      (processedFile as any).researchFindings = {
+        acknowledgements: ackItems,
+        affiliations: affItems,
+      };
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0;
+      if (ackItems.length) (processedFile.metadata as any).acknowledgementsExcerpt = ackItems[0].text;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0;
+      if (affItems.length) (processedFile.metadata as any).affiliationsGuesses = affItems.map((i) => i.text).slice(0, 8);
     }
   } catch (e) {
     console.warn('PPTX content scan skipped:', e);
@@ -644,6 +859,8 @@ async function parseCsv(file: File): Promise<ProcessedFile> {
           urlPages.get(value)!.add(page);
         }
       });
+      if (ACK_HEADERS_RE.test(joined) || ACK_PHRASES_RE.test(joined)) addFinding(ackMap, joined, page);
+      if (AFFIL_HEADER_RE.test(joined) || AFFIL_CUES_RE.test(joined)) addFinding(affMap, joined, page);
     });
 
     const emailList = Array.from(emailPages.keys());
@@ -655,6 +872,18 @@ async function parseCsv(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+    const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+    const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+    if (ackItems.length || affItems.length) {
+      (processedFile as any).researchFindings = {
+        acknowledgements: ackItems,
+        affiliations: affItems,
+      };
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0;
+      if (ackItems.length) (processedFile.metadata as any).acknowledgementsExcerpt = ackItems[0].text;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0;
+      if (affItems.length) (processedFile.metadata as any).affiliationsGuesses = affItems.map((i) => i.text).slice(0, 8);
     }
   } catch (e) {
     console.warn('CSV parse warning:', e);
@@ -724,6 +953,8 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
     // Content scan: scan by line and record line numbers
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
+    const ackMap = new Map<string, Set<number>>();
+    const affMap = new Map<string, Set<number>>();
     const lines = text.split(/\r?\n/);
     lines.forEach((line, idx) => {
       const page = idx + 1; // treat line number as page index
@@ -737,6 +968,10 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
           urlPages.get(value)!.add(page);
         }
       });
+
+      // Research findings by line
+      if (ACK_HEADERS_RE.test(line) || ACK_PHRASES_RE.test(line)) addFinding(ackMap, line, page);
+      if (AFFIL_HEADER_RE.test(line) || AFFIL_CUES_RE.test(line)) addFinding(affMap, line, page);
 
       // Also capture Markdown inline links and reference definitions
       // Inline: [text](url) or ![alt](url)
@@ -780,6 +1015,32 @@ async function parseMarkdown(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+
+    // Research signals + findings from Markdown
+    if (text && text.replace(/\s+/g, '').length > 20) {
+      const signals = scanResearchSignals(text);
+      const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+      const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+      if (ackItems.length || affItems.length) {
+        (processedFile as any).researchFindings = {
+          acknowledgements: ackItems,
+          affiliations: affItems,
+        };
+      }
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0 || signals.acknowledgementsDetected;
+      if ((processedFile.metadata as any).acknowledgementsDetected) {
+        const first = ackItems[0]?.text || signals.acknowledgementsExcerpt;
+        if (first) (processedFile.metadata as any).acknowledgementsExcerpt = first;
+      }
+      (processedFile.metadata as any).fundingDetected = signals.fundingDetected;
+      if (signals.fundingMentions?.length) (processedFile.metadata as any).fundingMentions = signals.fundingMentions;
+      if (signals.grantIds?.length) (processedFile.metadata as any).grantIds = signals.grantIds;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0 || signals.affiliationsDetected;
+      if ((processedFile.metadata as any).affiliationsDetected) {
+        const guesses = affItems.length ? affItems.map((i) => i.text) : signals.affiliationsGuesses || [];
+        if (guesses.length) (processedFile.metadata as any).affiliationsGuesses = Array.from(new Set(guesses)).slice(0, 8);
+      }
     }
   } catch (e) {
     console.warn('Markdown parse warning:', e);
@@ -873,6 +1134,8 @@ async function parseJson(file: File): Promise<ProcessedFile> {
     // Content scan: by raw text lines to get accurate line numbers
     const emailPages = new Map<string, Set<number>>();
     const urlPages = new Map<string, Set<number>>();
+    const ackMap = new Map<string, Set<number>>();
+    const affMap = new Map<string, Set<number>>();
     const lines = text.split(/\r?\n/);
     lines.forEach((line, idx) => {
       const page = idx + 1;
@@ -886,6 +1149,8 @@ async function parseJson(file: File): Promise<ProcessedFile> {
           urlPages.get(value)!.add(page);
         }
       });
+      if (ACK_HEADERS_RE.test(line) || ACK_PHRASES_RE.test(line)) addFinding(ackMap, line, page);
+      if (AFFIL_HEADER_RE.test(line) || AFFIL_CUES_RE.test(line)) addFinding(affMap, line, page);
     });
 
     const emailList = Array.from(emailPages.keys());
@@ -897,6 +1162,19 @@ async function parseJson(file: File): Promise<ProcessedFile> {
         emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
         urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
       };
+    }
+    // Research findings + metadata flags from JSON text
+    const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
+    const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));
+    if (ackItems.length || affItems.length) {
+      (processedFile as any).researchFindings = {
+        acknowledgements: ackItems,
+        affiliations: affItems,
+      };
+      (processedFile.metadata as any).acknowledgementsDetected = ackItems.length > 0;
+      if (ackItems.length) (processedFile.metadata as any).acknowledgementsExcerpt = ackItems[0].text;
+      (processedFile.metadata as any).affiliationsDetected = affItems.length > 0;
+      if (affItems.length) (processedFile.metadata as any).affiliationsGuesses = affItems.map((i) => i.text).slice(0, 8);
     }
   } catch (e) {
     console.warn('JSON parse warning:', e);

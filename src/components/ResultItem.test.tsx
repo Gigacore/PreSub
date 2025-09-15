@@ -43,6 +43,28 @@ describe('ResultItem', () => {
     expect(screen.getByText('10')).toBeInTheDocument();
   });
 
+  it('shows research signals banner and section when detected', () => {
+    const withSignals: ProcessedFile = {
+      ...mockResult,
+      metadata: {
+        ...mockResult.metadata,
+        acknowledgementsDetected: true,
+        acknowledgementsExcerpt: 'We thank the funding agency for support.',
+        fundingDetected: true,
+        fundingMentions: ['This work was supported by NSF.'],
+        grantIds: ['NSF123456'],
+        affiliationsDetected: true,
+        affiliationsGuesses: ['Department of X, University of Y'],
+      },
+    };
+    render(<ResultItem result={withSignals} />);
+    expect(screen.getByText('Research Signals Detected')).toBeInTheDocument();
+    expect(screen.getByText('Research Signals')).toBeInTheDocument();
+    expect(screen.getByText('Acknowledgements')).toBeInTheDocument();
+    expect(screen.getByText('Funding')).toBeInTheDocument();
+    expect(screen.getByText('Affiliations')).toBeInTheDocument();
+  });
+
   it('calls onRemove when the remove button is clicked', () => {
     const onRemove = vi.fn();
     render(<ResultItem result={mockResult} onRemove={onRemove} />);
