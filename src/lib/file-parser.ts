@@ -81,7 +81,21 @@ function scanResearchSignals(rawText: string): ResearchSignals {
 
 // Helper for accumulating research findings with locations
 function addFinding(map: Map<string, Set<number>>, key: string, page: number) {
-  const k = key.replace(/\s+/g, ' ').trim();
+  // Normalize for de-duplication across sentence vs context snippets
+  const normalize = (s: string) => {
+    let out = (s || '')
+      .replace(/\u00AD/g, '') // soft hyphen
+      .replace(/\s+/g, ' ')
+      .trim();
+    // Strip leading/trailing ellipsis characters or "..."
+    out = out.replace(/^(?:…|\.\.\.)\s*/, '');
+    out = out.replace(/\s*(?:…|\.\.\.)$/, '');
+    // Trim surrounding quotes if present
+    out = out.replace(/^['"“”‘’]+\s*/, '').replace(/\s*['"“”‘’]+$/, '');
+    return out;
+  };
+
+  const k = normalize(key);
   if (!k) return;
   if (!map.has(k)) map.set(k, new Set());
   map.get(k)!.add(page);
@@ -155,10 +169,16 @@ async function parsePdf(file: File): Promise<ProcessedFile> {
             addFinding(ackMap, s, p);
           }
         });
-        // Fallback: if header phrase appears but not captured as sentence, add context
+        // Fallback: only add context if not already captured by a sentence
         const mAck = text.match(ACK_HEADERS_RE) || text.match(ACK_PHRASES_RE);
         if (mAck && mAck.index !== undefined) {
-          addFinding(ackMap, extractContextSnippet(text, mAck.index), p);
+          const phrase = String(mAck[0] || '').toLowerCase();
+          const alreadyHasPhraseOnPage = Array.from(ackMap.entries()).some(([t, pages]) =>
+            pages.has(p) && t.toLowerCase().includes(phrase)
+          );
+          if (!alreadyHasPhraseOnPage) {
+            addFinding(ackMap, extractContextSnippet(text, mAck.index), p);
+          }
         }
         // Research: Affiliations (by sentence and cues)
         const affSentences = text.split(/(?<=[.!?])\s+/).filter((s: string) => AFFIL_HEADER_RE.test(s) || AFFIL_CUES_RE.test(s));
