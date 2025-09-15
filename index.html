@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreSub - Page Moved</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #007bff, #00d4ff);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: #007bff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            position: relative;
+        }
+
+        .logo-icon::after {
+            content: '✓';
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .logo-text {
+            color: #2c3e50;
+        }
+
+        .logo-text .sub {
+            color: #007bff;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .message {
+            color: #6c757d;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .countdown-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .countdown {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #007bff;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .countdown-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #00d4ff);
+            width: 0%;
+            transition: width 1s linear;
+            border-radius: 3px;
+        }
+
+        .redirect-button {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+        }
+
+        .redirect-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(0, 123, 255, 0.4);
+        }
+
+        .redirect-button:active {
+            transform: translateY(0);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 40px 25px;
+                margin: 10px;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .logo-icon {
+                width: 50px;
+                height: 50px;
+                margin-right: 10px;
+            }
+
+            .logo-icon::after {
+                font-size: 24px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .message {
+                font-size: 1rem;
+            }
+
+            .countdown {
+                font-size: 2.5rem;
+            }
+
+            .countdown-container {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .logo {
+                font-size: 1.8rem;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .logo-icon {
+                margin-right: 0;
+            }
+
+            .countdown {
+                font-size: 2rem;
+            }
+
+            .redirect-button {
+                width: 100%;
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://presub.app/assets/presub-logo.png" alt="PreSub Logo" class="logo-text" style="max-width: 300px; height: auto;">
+        </div>
+        
+        <h1>We've Moved!</h1>
+        
+        <p class="message">
+            PreSub has moved to a new location. You'll be automatically redirected to our new site in just a few seconds.
+        </p>
+        
+        <div class="countdown-container">
+            <div class="countdown pulse" id="countdown">10</div>
+            <div class="countdown-label">Seconds remaining</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <button class="redirect-button" onclick="redirectNow()" id="redirectBtn">
+            <span class="spinner" id="spinner" style="display: none;"></span>
+            Take Me There Now
+        </button>
+    </div>
+
+    <script>
+        // Configuration
+        const NEW_URL = 'https://presub.app'; // Change this to your actual new URL
+        const REDIRECT_DELAY = 10000; // 10 seconds
+        
+        let countdown = 10;
+        let redirectTimer;
+        let progressTimer;
+        
+        // DOM elements
+        const countdownElement = document.getElementById('countdown');
+        const progressFill = document.getElementById('progressFill');
+        const redirectBtn = document.getElementById('redirectBtn');
+        const spinner = document.getElementById('spinner');
+        
+        // Start countdown
+        function startCountdown() {
+            // Update progress bar
+            let progress = 0;
+            const progressIncrement = 100 / (REDIRECT_DELAY / 100);
+            
+            progressTimer = setInterval(() => {
+                progress += progressIncrement;
+                if (progress <= 100) {
+                    progressFill.style.width = progress + '%';
+                }
+            }, 100);
+            
+            // Update countdown display
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    redirect();
+                }
+            }, 1000);
+            
+            // Set main redirect timer
+            redirectTimer = setTimeout(redirect, REDIRECT_DELAY);
+        }
+        
+        // Redirect function
+        function redirect() {
+            clearTimeout(redirectTimer);
+            clearInterval(progressTimer);
+            
+            // Show loading state
+            spinner.style.display = 'inline-block';
+            redirectBtn.innerHTML = '<span class="spinner"></span>Redirecting...';
+            redirectBtn.disabled = true;
+            
+            // Redirect after a brief moment to show loading state
+            setTimeout(() => {
+                window.location.href = NEW_URL;
+            }, 500);
+        }
+        
+        // Manual redirect function
+        function redirectNow() {
+            clearTimeout(redirectTimer);
+            clearInterval(progressTimer);
+            redirect();
+        }
+        
+        // Start the countdown when page loads
+        window.addEventListener('load', startCountdown);
+        
+        // Handle browser back/forward buttons
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                startCountdown();
+            }
+        });
+    </script>
+</body>
+</html>
