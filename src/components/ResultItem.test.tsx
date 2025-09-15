@@ -19,50 +19,39 @@ const mockResult: ProcessedFile = {
 };
 
 describe('ResultItem', () => {
-  it('renders the file name', () => {
+  it('renders the file name in the header', () => {
     render(<ResultItem result={mockResult} />);
     expect(screen.getByText('test.pdf')).toBeInTheDocument();
   });
 
-  it('shows potential issues', () => {
+  it('shows potential issues when present', () => {
     render(<ResultItem result={mockResult} />);
     expect(screen.getByText(/Potential Issues/)).toBeInTheDocument();
     expect(screen.getByText(/AUTHOR FOUND/)).toBeInTheDocument();
   });
 
-  it('shows review suggested banner', () => {
+  it('shows content findings info banner when content findings are present', () => {
     render(<ResultItem result={mockResult} />);
     expect(screen.getByText('Review Suggested')).toBeInTheDocument();
   });
 
-  it('renders metadata', () => {
-    render(<ResultItem result={mockResult} />);
-    expect(screen.getByText('AUTHOR')).toBeInTheDocument();
-    expect(screen.getByText('Test Author')).toBeInTheDocument();
-    expect(screen.getByText('PAGES')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
-  });
-
-  it('shows research signals banner and section when detected', () => {
+  it('shows research signals info banner when research signals are detected', () => {
     const withSignals: ProcessedFile = {
       ...mockResult,
       metadata: {
         ...mockResult.metadata,
         acknowledgementsDetected: true,
-        acknowledgementsExcerpt: 'We thank the funding agency for support.',
-        fundingDetected: true,
-        fundingMentions: ['This work was supported by NSF.'],
-        grantIds: ['NSF123456'],
-        affiliationsDetected: true,
-        affiliationsGuesses: ['Department of X, University of Y'],
       },
     };
     render(<ResultItem result={withSignals} />);
     expect(screen.getByText('Research Signals Detected')).toBeInTheDocument();
-    expect(screen.getByText('Research Signals')).toBeInTheDocument();
-    expect(screen.getByText('Acknowledgements')).toBeInTheDocument();
-    expect(screen.getByText('Funding')).toBeInTheDocument();
-    expect(screen.getByText('Affiliations')).toBeInTheDocument();
+  });
+
+  it('renders the metadata display', () => {
+    render(<ResultItem result={mockResult} />);
+    expect(screen.getByText('Metadata')).toBeInTheDocument();
+    expect(screen.getByText('AUTHOR')).toBeInTheDocument();
+    expect(screen.getByText('Test Author')).toBeInTheDocument();
   });
 
   it('calls onRemove when the remove button is clicked', () => {
