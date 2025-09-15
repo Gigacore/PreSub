@@ -11,7 +11,6 @@
     "preview": "vite preview",
     "test": "vitest",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "deploy:workers": "wrangler publish"
   },
   "dependencies": {
@@ -37,7 +36,6 @@
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
-    "gh-pages": "^6.3.0",
     "globals": "^16.3.0",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
@@ -45,9 +43,9 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
     "vite": "^7.1.2",
-    "wrangler": "^3.90.0",
     "vite-plugin-pwa": "^1.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^3.90.0"
   },
   "homepage": "https://gigacore.github.io/PreSub/"
 }

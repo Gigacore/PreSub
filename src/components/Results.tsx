@@ -9,7 +9,7 @@ interface ResultsProps {
 
 function Results({ results, onClear, onRemove }: ResultsProps) {
   return (
-    <div className="space-y-6" role="region" aria-label="Analysis Results">
+    <div id="results-top" className="space-y-6 scroll-mt-20" role="region" aria-label="Analysis Results">
       {/* Make header stack on small screens to avoid overflow */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-sm font-medium text-gray-700">Results ({results.length})</h2>

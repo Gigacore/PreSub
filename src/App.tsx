@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import FileDropzone from './components/FileDropzone';
@@ -18,6 +18,11 @@ export interface ProcessedFile {
     emails: Array<{ value: string; pages: number[] }>;
     urls: Array<{ value: string; pages: number[] }>;
   };
+  // Structured research findings for acknowledgements and affiliations with locations
+  researchFindings?: {
+    acknowledgements: Array<{ text: string; pages: number[] }>;
+    affiliations: Array<{ text: string; pages: number[] }>;
+  };
   // Full EXIF map for image files (all tags flattened to human-readable values)
   exif?: Record<string, string | number | boolean | null>;
   // Object URL for image previews
@@ -27,6 +32,19 @@ export interface ProcessedFile {
 function App() {
   const [results, setResults] = useState<ProcessedFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      try {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
+        setShowBackToTop(y > 300);
+      } catch {}
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleFiles = async (files: File[]) => {
     setIsLoading(true);
@@ -109,6 +127,23 @@ function App() {
         )}
       </main>
       <Footer />
+
+      {/* Back to Top floating button */}
+      {showBackToTop && (
+        <button
+          type="button"
+          aria-label="Back to top"
+          title="Back to top"
+          onClick={() => {
+            const el = document.getElementById('results-top');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            else window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="fixed bottom-6 right-6 z-50 h-11 w-11 rounded-full bg-white text-gray-700 shadow-lg border border-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 flex items-center justify-center"
+        >
+          <span aria-hidden className="material-symbols-outlined">north</span>
+        </button>
+      )}
     </div>
   );
 }
