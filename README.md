@@ -29,12 +29,6 @@ All file parsing runs entirely on your device. No files or metadata leave your b
 - **Coverage**: Metadata availability varies by file and toolchain; some fields may be missing or stored in proprietary places.
 - **Legacy formats**: `.doc`, `.xls`, `.ppt` are not parsed; convert to modern formats first.
 
-**Tech Stack**
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **Parsing**: `pdfjs-dist`, `mammoth`, `xlsx`, `jszip`, `exifreader`
-- **UX**: `react-dropzone`
-- **PWA**: `vite-plugin-pwa`
-
 ## Contributing
 
 Contributions are welcome! If you have suggestions or improvements, please create a pull request or open an issue in the repository.
