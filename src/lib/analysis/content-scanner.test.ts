@@ -49,4 +49,22 @@ describe('scanTextForEmailsAndUrls', () => {
     scanTextForEmailsAndUrls('This is a plain sentence.', onMatch);
     expect(matches).toHaveLength(0);
   });
+
+  it('should strip trailing punctuation from URLs', () => {
+    const matches: { value: string; kind: 'email' | 'url' }[] = [];
+    const onMatch = (value: string, kind: 'email' | 'url') => {
+      matches.push({ value, kind });
+    };
+    scanTextForEmailsAndUrls('Check www.example.com/page).', onMatch);
+    expect(matches).toEqual([{ value: 'www.example.com/page', kind: 'url' }]);
+  });
+
+  it('should find bare domains with paths', () => {
+    const matches: { value: string; kind: 'email' | 'url' }[] = [];
+    const onMatch = (value: string, kind: 'email' | 'url') => {
+      matches.push({ value, kind });
+    };
+    scanTextForEmailsAndUrls('Link: example.com/path', onMatch);
+    expect(matches).toEqual([{ value: 'example.com/path', kind: 'url' }]);
+  });
 });

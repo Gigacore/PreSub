@@ -5,6 +5,7 @@ import type { ProcessedFile } from '../App';
 
 const mockResult: ProcessedFile = {
   fileName: 'test.pdf',
+  previewUrl: 'test.jpg',
   metadata: {
     author: 'Test Author',
     pages: 10,
@@ -28,6 +29,13 @@ describe('ResultItem', () => {
     render(<ResultItem result={mockResult} />);
     expect(screen.getByText(/Potential Issues/)).toBeInTheDocument();
     expect(screen.getByText(/AUTHOR FOUND/)).toBeInTheDocument();
+  });
+
+  it('filters issues when dismiss is clicked', () => {
+    render(<ResultItem result={mockResult} />);
+    const dismissButton = screen.getByRole('button', { name: 'Dismiss' });
+    fireEvent.click(dismissButton);
+    expect(screen.queryByText(/AUTHOR FOUND/)).not.toBeInTheDocument();
   });
 
   it('shows content findings info banner when content findings are present', () => {
@@ -60,5 +68,20 @@ describe('ResultItem', () => {
     const removeButton = screen.getByRole('button', { name: /remove/i });
     fireEvent.click(removeButton);
     expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the lightbox when the preview button is clicked', () => {
+    render(<ResultItem result={mockResult} />);
+    const previewButton = screen.getByLabelText('Preview test.pdf');
+    fireEvent.click(previewButton);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('scrolls to section when info banner is clicked', () => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    render(<ResultItem result={mockResult} />);
+    const banner = screen.getByText('Review Suggested');
+    fireEvent.click(banner);
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
   });
 });

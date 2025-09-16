@@ -43,7 +43,9 @@ describe('FileDropzone', () => {
     });
 
     render(<FileDropzone onFilesSelected={onFilesSelected} />);
-    onDrop(mockFiles);
+    act(() => {
+        onDrop(mockFiles);
+    });
     expect(onFilesSelected).toHaveBeenCalledWith(mockFiles);
   });
 
@@ -59,10 +61,51 @@ describe('FileDropzone', () => {
     });
     render(<FileDropzone onFilesSelected={() => {}} />);
     act(() => {
-      onDropRejected([{ file: new File([''], 'test.txt'), errors: [] }]);
+      onDropRejected([{ file: {name: 'test.txt'}, errors: [] }]);
     });
     await waitFor(() => {
       expect(screen.getByText(/some files were rejected/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows a specific error message for legacy office formats', async () => {
+    let onDropRejected: (rejections: any[]) => void;
+    useDropzoneMock.mockImplementation((options) => {
+      onDropRejected = options.onDropRejected;
+      return {
+        getRootProps: () => ({}),
+        getInputProps: () => ({}),
+        isDragActive: false,
+      };
+    });
+    render(<FileDropzone onFilesSelected={() => {}} />);
+    act(() => {
+      onDropRejected([{ file: {name: 'test.doc'}, errors: [] }]);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/legacy formats/i)).toBeInTheDocument();
+    });
+  });
+
+  it('validates file types correctly', () => {
+    let validator: (file: File) => any;
+    useDropzoneMock.mockImplementation((options) => {
+      validator = options.validator;
+      return {
+        getRootProps: () => ({}),
+        getInputProps: () => ({}),
+        isDragActive: false,
+      };
+    });
+    render(<FileDropzone onFilesSelected={() => {}} />);
+
+    const validFile = new File([''], 'test.pdf', { type: 'application/pdf' });
+    const invalidFile = new File([''], 'test.txt', { type: 'text/plain' });
+
+    expect(validator(validFile)).toBeNull();
+    expect(validator(invalidFile)).toEqual({
+      code: 'file-invalid-type',
+      message: 'Unsupported file type. Please select a supported format.',
     });
   });
 });

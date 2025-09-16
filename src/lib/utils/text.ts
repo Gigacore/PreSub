@@ -68,7 +68,13 @@ export function extractFrontMatter(text: string): { data: any; body: string } | 
       value = value.slice(1, -1);
     } else if (value.startsWith('[') && value.endsWith(']')) {
       // Inline array
-      const arr = value.slice(1, -1).split(',').map((s) => s.trim()).filter(Boolean);
+      const arr = value.slice(1, -1).split(',').map((s) => {
+        const trimmed = s.trim();
+        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
+          return trimmed.slice(1, -1);
+        }
+        return trimmed;
+      }).filter(Boolean);
       data[key] = arr;
       continue;
     } else if (value === '[]') {

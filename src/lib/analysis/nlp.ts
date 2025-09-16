@@ -34,7 +34,7 @@ export type NlpSetupEvent =
 
 export const NLP_SETUP_EVENT = 'presub:nlp-setup';
 
-function emitNlpSetupEvent(detail: NlpSetupEvent) {
+export function emitNlpSetupEvent(detail: NlpSetupEvent) {
   if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
   try {
     window.dispatchEvent(new CustomEvent<NlpSetupEvent>(NLP_SETUP_EVENT, { detail }));
@@ -43,7 +43,7 @@ function emitNlpSetupEvent(detail: NlpSetupEvent) {
   }
 }
 
-const SENSITIVE_ENTITY_LABELS = new Set(['PER', 'ORG']);
+export const SENSITIVE_ENTITY_LABELS = new Set(['PER', 'ORG']);
 
 export async function shouldFlagPersonValue(raw: unknown): Promise<boolean> {
   if (typeof raw !== 'string') return false;
@@ -74,7 +74,7 @@ const METADATA_ENTITY_KEYS = new Set([
   'owner',
 ]);
 
-function shouldIncludeMetadataKey(key: string): boolean {
+export function shouldIncludeMetadataKey(key: string): boolean {
   const normalized = key.trim().toLowerCase();
   if (!normalized || normalized.startsWith('nlp')) return false;
   if (normalized.endsWith('found') || normalized.endsWith('detected')) return false;
@@ -84,7 +84,7 @@ function shouldIncludeMetadataKey(key: string): boolean {
   return METADATA_ENTITY_KEYS.has(normalized) || normalized.endsWith('author') || normalized.endsWith('creator');
 }
 
-function collectMetadataStrings(value: unknown): string[] {
+export function collectMetadataStrings(value: unknown): string[] {
   if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed ? [trimmed] : [];
@@ -102,7 +102,7 @@ function collectMetadataStrings(value: unknown): string[] {
   return [];
 }
 
-function buildMetadataText(metadata: Record<string, unknown>): string {
+export function buildMetadataText(metadata: Record<string, unknown>): string {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(metadata)) {
     if (!shouldIncludeMetadataKey(key)) continue;
@@ -118,6 +118,11 @@ const MAX_CHUNKS = 32; // cap to avoid extremely large jobs from blocking the UI
 
 let pipelinePromise: Promise<any> | null = null;
 let pipelineError: Error | null = null;
+
+export function resetNlpState_FOR_TESTING() {
+    pipelinePromise = null;
+    pipelineError = null;
+}
 
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -184,14 +189,14 @@ async function getPipeline() {
   return pipelinePromise;
 }
 
-function normalizeEntityLabel(raw: unknown): string {
+export function normalizeEntityLabel(raw: unknown): string {
   if (typeof raw !== 'string') return '';
   const trimmed = raw.trim();
   if (!trimmed) return '';
   return trimmed.replace(/^B-/, '').replace(/^I-/, '').toUpperCase();
 }
 
-function normalizeEntityValue(raw: unknown): string {
+export function normalizeEntityValue(raw: unknown): string {
   if (typeof raw !== 'string') return '';
   return raw
     .replace(/##/g, '')
@@ -199,7 +204,7 @@ function normalizeEntityValue(raw: unknown): string {
     .trim();
 }
 
-function chunkText(input: string): string[] {
+export function chunkText(input: string): string[] {
   const sanitized = input.replace(/\s+/g, ' ').trim();
   if (!sanitized) return [];
   if (sanitized.length <= MAX_CHARS_PER_CHUNK) return [sanitized];
