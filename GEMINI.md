@@ -1,0 +1,1 @@
+Use NLP by default for analysing the data of all files, for all text based results. Use fallback code if NLP is not available or if there is an error.
