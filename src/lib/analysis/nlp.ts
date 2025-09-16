@@ -41,11 +41,18 @@ async function getPipeline() {
           // Prefer remote hosted weights and enable caching in supported environments.
           if (env?.allowLocalModels !== undefined) env.allowLocalModels = false;
           if (env?.useBrowserCache !== undefined) env.useBrowserCache = true;
+          // Disable multi-threaded WASM backend to avoid util.js warnings when SharedArrayBuffer isn't available.
+          if (env?.backends?.onnx?.wasm) {
+            env.backends.onnx.wasm.numThreads = 1;
+            env.backends.onnx.wasm.proxy = false;
+          }
         } catch {
           // Ignore optional env tweaks; not fatal if unavailable.
         }
         return pipeline('token-classification', MODEL_ID, {
           aggregationStrategy: 'simple',
+          // Explicit dtype avoids runtime warning on WASM backends defaulting to q8.
+          dtype: 'q8',
         });
       })
       .catch((error) => {
