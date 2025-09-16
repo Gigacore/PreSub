@@ -1,4 +1,19 @@
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { ProcessedFile } from '../../App';
+import { classifyNamedEntitySpans } from '../../lib/analysis/nlp';
+
+type HighlightSegment = {
+  text: string;
+  label?: string;
+};
+
+const ENTITY_STYLES: Record<string, { text: string; background: string; tag: string }> = {
+  ORG: { text: '#115E59', background: '#CCFBF1', tag: '#14B8A6' },
+  PER: { text: '#9D174D', background: '#FCE7F3', tag: '#EC4899' },
+  LOC: { text: '#86198F', background: '#FAE8FF', tag: '#D946EF' },
+};
+
+const DEFAULT_ENTITY_STYLE = { text: '#1F2937', background: '#E5E7EB', tag: '#6B7280' };
 
 interface MetadataDisplayProps {
   metadata: ProcessedFile['metadata'];
@@ -28,6 +43,8 @@ function isNonEmpty(value: unknown) {
 }
 
 export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: MetadataDisplayProps) {
+  const [authorSegments, setAuthorSegments] = useState<HighlightSegment[] | null>(null);
+
   const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
   const hiddenKeys: string[] = [
     'wordCount', 'words', 'totalTime', 'exif',
@@ -41,6 +58,126 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
 
   const entries = Object.entries(metadata);
   const keyIn = (k: string) => Object.prototype.hasOwnProperty.call(metadata, k);
+
+  const authorRaw = metadata?.author as unknown;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (typeof authorRaw !== 'string') {
+      setAuthorSegments(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const trimmed = authorRaw.trim();
+    if (!trimmed) {
+      setAuthorSegments(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    classifyNamedEntitySpans(trimmed)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.available || !result.spans.length) {
+          setAuthorSegments(null);
+          return;
+        }
+
+        const segments: HighlightSegment[] = [];
+        let cursor = 0;
+        for (const span of result.spans) {
+          const boundedStart = Math.max(0, Math.min(trimmed.length, span.start));
+          const start = Math.max(cursor, boundedStart);
+          const boundedEnd = Math.max(start, Math.min(trimmed.length, span.end));
+          const end = Math.max(start, boundedEnd);
+          if (start > cursor) {
+            segments.push({ text: trimmed.slice(cursor, start) });
+          }
+          const highlighted = trimmed.slice(start, end);
+          if (highlighted) {
+            segments.push({ text: highlighted, label: span.label });
+          }
+          cursor = end;
+        }
+        if (cursor < trimmed.length) {
+          segments.push({ text: trimmed.slice(cursor) });
+        }
+        setAuthorSegments(segments);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuthorSegments(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authorRaw]);
+
+  const renderValue = useMemo(() => {
+    return (key: string, value: unknown): { node: ReactNode; title: string } => {
+      const fallback = formatValue(value);
+      if (key !== 'author') {
+        return { node: fallback, title: fallback };
+      }
+
+      if (typeof value !== 'string') {
+        return { node: fallback, title: fallback };
+      }
+
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return { node: '-', title: '-' };
+      }
+
+      if (!authorSegments || authorSegments.length === 0) {
+        return { node: trimmed, title: trimmed };
+      }
+
+      return {
+        node: (
+          <span className="inline-flex flex-wrap gap-1">{
+            authorSegments.map((segment, index) => {
+              if (!segment.label) {
+                return (
+                  <span key={`author-fragment-${index}`} className="whitespace-pre-wrap">
+                    {segment.text}
+                  </span>
+                );
+              }
+              const style = ENTITY_STYLES[segment.label] ?? DEFAULT_ENTITY_STYLE;
+              return (
+                <span
+                  key={`author-entity-${index}`}
+                  className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium"
+                  style={{
+                    backgroundColor: style.background,
+                    color: style.text,
+                  }}
+                >
+                  <span className="whitespace-pre-wrap">{segment.text}</span>
+                  <span
+                    className="ml-1 rounded-sm px-1 py-px text-[0.6rem] font-semibold uppercase"
+                    style={{
+                      backgroundColor: style.tag,
+                      color: style.background,
+                    }}
+                  >
+                    {segment.label}
+                  </span>
+                </span>
+              );
+            })
+          }</span>
+        ),
+        title: trimmed,
+      };
+    };
+  }, [authorSegments]);
 
   const restEntries = entries.filter(
     ([k]) =>
@@ -61,6 +198,7 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
           const isHighlightBase = (key === 'author' || key === 'creator' || key === 'lastModifiedBy') && isNonEmpty(value);
           const isIgnored = ignoredKeys.has(key);
           const isHighlight = isHighlightBase && !isIgnored;
+          const { node: displayValue, title } = renderValue(key, value);
           return (
             <div
               key={`priority-${key}`}
@@ -69,7 +207,7 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(String(key))}</p>
-                  <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
+                  <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={title}>{displayValue}</p>
                 </div>
                 {isHighlightBase && (
                   <div className="shrink-0">
@@ -122,13 +260,14 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
         {/* Remaining metadata fields */}
         {restEntries.map(([key, value]) => {
           const isHighlight = (key === 'author' || key === 'creator' || key === 'lastModifiedBy') && isNonEmpty(value);
+          const { node: displayValue, title } = renderValue(key, value);
           return (
             <div
               key={key}
               className={`bg-gray-50 p-4 rounded-xl border border-gray-200 ${isHighlight ? 'ring-2 ring-red-200' : ''}`}
             >
               <p className="text-gray-500 font-semibold text-xs sm:text-sm">{formatLabel(key)}</p>
-              <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={formatValue(value)}>{formatValue(value)}</p>
+              <p className="text-gray-800 text-xs sm:text-sm line-clamp-2" title={title}>{displayValue}</p>
             </div>
           );
         })}

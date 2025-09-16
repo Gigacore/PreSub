@@ -6,7 +6,7 @@ import {
   AFFIL_CUES_RE,
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
-import { annotateMetadataWithNamedEntities } from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities, shouldFlagAuthorValue } from '../analysis/nlp';
 
 export async function parseJson(file: File): Promise<ProcessedFile> {
   const text = await file.text();
@@ -83,7 +83,11 @@ export async function parseJson(file: File): Promise<ProcessedFile> {
     if (uLmb.length) (processedFile.metadata as any).lastModifiedBy = uLmb.length === 1 ? uLmb[0] : uLmb;
 
     // Flag potential issues for those
-    for (const a of uAuthors) potentialIssues.push({ type: 'AUTHOR FOUND', value: a });
+    for (const a of uAuthors) {
+      if (await shouldFlagAuthorValue(a)) {
+        potentialIssues.push({ type: 'AUTHOR FOUND', value: a });
+      }
+    }
     for (const c of uCreators) potentialIssues.push({ type: 'CREATOR FOUND', value: c });
     for (const l of uLmb) potentialIssues.push({ type: 'LAST MODIFIED BY FOUND', value: l });
 

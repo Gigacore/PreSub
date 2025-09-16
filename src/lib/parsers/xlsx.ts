@@ -7,7 +7,7 @@ import {
   AFFIL_CUES_RE,
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
-import { annotateMetadataWithNamedEntities } from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities, shouldFlagAuthorValue } from '../analysis/nlp';
 
 export async function parseXlsx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -29,7 +29,7 @@ export async function parseXlsx(file: File): Promise<ProcessedFile> {
     const lastModifiedBy = typeof (props as any).LastAuthor === 'string' ? (props as any).LastAuthor.trim() : '';
 
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (author && (await shouldFlagAuthorValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
     if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
     if (issues.length) processedFile.potentialIssues = issues;

@@ -12,6 +12,34 @@ export interface NamedEntityExtractionResult {
   truncated?: boolean;
 }
 
+export interface NamedEntitySpan {
+  label: string;
+  text: string;
+  start: number;
+  end: number;
+  score: number;
+}
+
+export interface TokenClassificationResult {
+  available: boolean;
+  spans: NamedEntitySpan[];
+  error?: string;
+}
+
+export async function shouldFlagAuthorValue(raw: unknown): Promise<boolean> {
+  if (typeof raw !== 'string') return false;
+  const trimmed = raw.trim();
+  if (!trimmed) return false;
+
+  try {
+    const result = await classifyNamedEntitySpans(trimmed);
+    if (!result.available) return true; // Fallback: preserve legacy behaviour
+    return result.spans.some((span) => span.label === 'PER');
+  } catch {
+    return true; // Fallback on unexpected errors
+  }
+}
+
 const METADATA_ENTITY_KEYS = new Set([
   'title',
   'subject',
@@ -211,6 +239,71 @@ export async function extractNamedEntities(text: string): Promise<NamedEntityExt
     return {
       available: false,
       items: [],
+      error: toErrorMessage(error),
+    };
+  }
+}
+
+export async function classifyNamedEntitySpans(text: string): Promise<TokenClassificationResult> {
+  const trimmed = (text || '').trim();
+  if (!trimmed) {
+    return {
+      available: true,
+      spans: [],
+    };
+  }
+
+  let pipelineInstance: any;
+  try {
+    pipelineInstance = await getPipeline();
+  } catch (error) {
+    return {
+      available: false,
+      spans: [],
+      error: toErrorMessage(error),
+    };
+  }
+
+  try {
+    const raw = await pipelineInstance(trimmed, {
+      ignore_labels: [],
+    });
+
+    const spans: NamedEntitySpan[] = [];
+    if (Array.isArray(raw)) {
+      for (const entry of raw) {
+        const label = normalizeEntityLabel((entry as any).entity_group ?? (entry as any).entity);
+        if (!label || label === 'O') continue;
+        const startRaw = (entry as any).start;
+        const endRaw = (entry as any).end;
+        const start = typeof startRaw === 'number' ? startRaw : undefined;
+        const end = typeof endRaw === 'number' ? endRaw : undefined;
+        const fallbackText = normalizeEntityValue((entry as any).word ?? (entry as any).text ?? '');
+        const textValue = start !== undefined && end !== undefined ? trimmed.slice(start, end) : fallbackText;
+        if (!textValue) continue;
+        const scoreRaw = (entry as any).score ?? (entry as any).confidence ?? 0;
+        const score = typeof scoreRaw === 'number' ? scoreRaw : Number(scoreRaw) || 0;
+
+        spans.push({
+          label,
+          text: textValue,
+          start: start !== undefined ? start : Math.max(0, trimmed.indexOf(textValue)),
+          end: end !== undefined ? end : Math.max(0, trimmed.indexOf(textValue) + textValue.length),
+          score,
+        });
+      }
+    }
+
+    spans.sort((a, b) => a.start - b.start);
+
+    return {
+      available: true,
+      spans,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      spans: [],
       error: toErrorMessage(error),
     };
   }

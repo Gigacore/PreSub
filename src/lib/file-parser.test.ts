@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { parseFile } from './file-parser';
 
 // Mock the parsing libraries
+vi.mock('./analysis/nlp', () => ({
+  annotateMetadataWithNamedEntities: vi.fn().mockResolvedValue(undefined),
+  shouldFlagAuthorValue: vi.fn().mockResolvedValue(true),
+}));
 vi.mock('pdfjs-dist', () => ({
   getDocument: vi.fn().mockReturnValue({
     promise: Promise.resolve({
