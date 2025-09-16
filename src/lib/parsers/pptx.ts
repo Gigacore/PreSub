@@ -11,13 +11,7 @@ import {
 import { extractOOXMLMetadata } from '../utils/ooxml';
 import { safeReadText } from '../utils/zip';
 import { parseXml } from '../utils/xml';
-import {
-  extractNamedEntities,
-  addEntitiesToAccumulator,
-  finalizeAccumulator,
-  NAMED_ENTITY_MODEL_ID,
-  type EntityAccumulatorEntry,
-} from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities } from '../analysis/nlp';
 
 export async function parsePptx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -50,13 +44,6 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
     const urlPages = new Map<string, Set<number>>();
     const ackMap = new Map<string, Set<number>>();
     const affMap = new Map<string, Set<number>>();
-    const entityAccumulator = new Map<string, EntityAccumulatorEntry>();
-    let nlpAttempted = false;
-    let nlpAnySuccess = false;
-    let nlpAnyFailure = false;
-    let nlpErrorMessage: string | undefined;
-    let nlpModel: string | undefined;
-    let nlpTruncated = false;
 
     // Collect slide files and sort by slide number
     const slidePaths = Object.keys(zip.files)
@@ -81,25 +68,7 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
           }
         }
         const joined = texts.join(' ');
-        if (joined) {
-          nlpAttempted = true;
-          try {
-            const nerResult = await extractNamedEntities(joined);
-            if (nerResult.available) {
-              nlpAnySuccess = true;
-              if (!nlpModel && nerResult.model) nlpModel = nerResult.model;
-              if (nerResult.truncated) nlpTruncated = true;
-              if (nerResult.items.length) {
-                addEntitiesToAccumulator(entityAccumulator, nerResult.items, num);
-              }
-            } else {
-              nlpAnyFailure = true;
-              if (!nlpErrorMessage && nerResult.error) nlpErrorMessage = nerResult.error;
-            }
-          } catch (err) {
-            nlpAnyFailure = true;
-            if (!nlpErrorMessage) nlpErrorMessage = err instanceof Error ? err.message : String(err);
-          }
+        if (joined.trim()) {
           scanTextForEmailsAndUrls(joined, (value, kind) => {
             if (kind === 'email') {
               if (!emailPages.has(value)) emailPages.set(value, new Set());
@@ -156,11 +125,9 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
     const urlList = Array.from(urlPages.keys());
     if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
     if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
-    const entityFindings = finalizeAccumulator(entityAccumulator);
     const hasEmails = emailList.length > 0;
     const hasUrls = urlList.length > 0;
-    const hasEntities = entityFindings.length > 0;
-    if (hasEmails || hasUrls || hasEntities) {
+    if (hasEmails || hasUrls) {
       const contentFindings =
         processedFile.contentFindings ?? {
           emails: [] as Array<{ value: string; pages: number[] }>,
@@ -172,27 +139,7 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
       contentFindings.urls = hasUrls
         ? urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) }))
         : contentFindings.urls;
-      if (hasEntities) {
-        contentFindings.entities = entityFindings;
-        contentFindings.entityPositionLabel = 'Slides';
-      }
       processedFile.contentFindings = contentFindings;
-    }
-
-    if (nlpAttempted) {
-      if (nlpAnySuccess) {
-        (processedFile.metadata as any).nlpAnalysis = 'Transformers enabled';
-        (processedFile.metadata as any).nlpModel = nlpModel ?? NAMED_ENTITY_MODEL_ID;
-        if (nlpTruncated) {
-          (processedFile.metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
-        }
-        if (nlpAnyFailure && nlpErrorMessage) {
-          (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
-        }
-      } else if (nlpAnyFailure) {
-        (processedFile.metadata as any).nlpAnalysis = 'Fallback only (NLP unavailable)';
-        if (nlpErrorMessage) (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
-      }
     }
     // Research findings + metadata flags
     const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
@@ -207,6 +154,8 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
       (processedFile.metadata as any).affiliationsDetected = affItems.length > 0;
       if (affItems.length) (processedFile.metadata as any).affiliationsGuesses = affItems.map((i) => i.text).slice(0, 8);
     }
+
+    await annotateMetadataWithNamedEntities(processedFile.metadata);
   } catch (e) {
     console.warn('PPTX content scan skipped:', e);
   }

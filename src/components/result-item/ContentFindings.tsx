@@ -29,8 +29,7 @@ export function ContentFindings({ result }: ContentFindingsProps) {
 
   const hasEmails = (cf?.emails?.length ?? 0) > 0;
   const hasUrls = (cf?.urls?.length ?? 0) > 0;
-  const hasEntities = (cf?.entities?.length ?? 0) > 0;
-  const hasStructuredFindings = hasEmails || hasUrls || hasEntities;
+  const hasStructuredFindings = hasEmails || hasUrls;
 
   if (!hasStructuredFindings) {
     if (!legacyEmails && !legacyUrls) return null;
@@ -132,19 +131,6 @@ export function ContentFindings({ result }: ContentFindingsProps) {
           return d === domainFilter || d.endsWith(`.${domainFilter}`);
         })
       : rows;
-
-  const entities = cf?.entities ?? [];
-  const entityPositionLabel = cf?.entityPositionLabel ?? 'Occurrences';
-  const nlpStatus = (result.metadata as any).nlpAnalysis as string | undefined;
-  const nlpModel = (result.metadata as any).nlpModel as string | undefined;
-  const nlpNote = (result.metadata as any).nlpAnalysisNote as string | undefined;
-  const nlpFallbackReason = (result.metadata as any).nlpFallbackReason as string | undefined;
-  const statusLineParts: string[] = [];
-  if (nlpStatus) statusLineParts.push(nlpStatus);
-  if (nlpModel) statusLineParts.push(`Model: ${nlpModel}`);
-  const statusLine = statusLineParts.join(' • ');
-
-  const toConfidence = (score: number) => `${Math.round(Math.min(Math.max(score, 0), 1) * 1000) / 10}%`;
 
   return (
     <div id="content-findings" className="mb-2 scroll-mt-16">
@@ -279,65 +265,6 @@ export function ContentFindings({ result }: ContentFindingsProps) {
             </table>
           </div>
         </>
-      )}
-
-      {hasEntities && (
-        <div className={`${hasEmails || hasUrls ? 'mt-6' : ''}`}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-            <h4 className="text-xs sm:text-sm font-semibold text-gray-700">Named Entity Findings (NLP)</h4>
-            {statusLine && <div className="text-[11px] sm:text-xs text-gray-500">{statusLine}</div>}
-          </div>
-          {nlpFallbackReason && <p className="text-xs text-red-600 mb-2">Fallback: {nlpFallbackReason}</p>}
-          {nlpNote && <p className="text-xs text-gray-500 mb-2">{nlpNote}</p>}
-
-          <ul className="md:hidden space-y-2">
-            {entities.map((entity, index) => (
-              <li key={`${entity.label}:${entity.value}:${index}`} className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between text-[10px] uppercase text-gray-500 font-semibold">
-                    <span>{entity.label}</span>
-                    <span>{toConfidence(entity.averageScore)}</span>
-                  </div>
-                  <div className="text-sm text-gray-800 break-words">{entity.value}</div>
-                  <div className="text-[11px] text-gray-600">
-                    Occurrences: {entity.occurrences}
-                    {entity.positions?.length ? (
-                      <>
-                        {' • '}
-                        {entityPositionLabel}: {entity.positions.join(', ')}
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Entity</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Occurrences</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Confidence</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">{entityPositionLabel}</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {entities.map((entity, index) => (
-                  <tr key={`${entity.label}:${entity.value}:${index}`}>
-                    <td className="px-4 py-2 text-xs text-gray-800 whitespace-nowrap">{entity.label}</td>
-                    <td className="px-4 py-2 text-xs text-gray-900 break-words">{entity.value}</td>
-                    <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{entity.occurrences}</td>
-                    <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{toConfidence(entity.averageScore)}</td>
-                    <td className="px-4 py-2 text-xs text-gray-600 whitespace-nowrap">{entity.positions?.length ? entity.positions.join(', ') : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       )}
     </div>
   );

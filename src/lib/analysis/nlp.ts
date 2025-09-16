@@ -12,6 +12,58 @@ export interface NamedEntityExtractionResult {
   truncated?: boolean;
 }
 
+const METADATA_ENTITY_KEYS = new Set([
+  'title',
+  'subject',
+  'author',
+  'creator',
+  'producer',
+  'company',
+  'manager',
+  'organization',
+  'lastmodifiedby',
+  'keywords',
+  'description',
+  'owner',
+]);
+
+function shouldIncludeMetadataKey(key: string): boolean {
+  const normalized = key.trim().toLowerCase();
+  if (!normalized || normalized.startsWith('nlp')) return false;
+  if (normalized.endsWith('found') || normalized.endsWith('detected')) return false;
+  if (normalized.includes('acknowledgement') || normalized.includes('acknowledgment')) return false;
+  if (normalized.includes('affiliation')) return false;
+  if (normalized.includes('funding')) return false;
+  return METADATA_ENTITY_KEYS.has(normalized) || normalized.endsWith('author') || normalized.endsWith('creator');
+}
+
+function collectMetadataStrings(value: unknown): string[] {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (Array.isArray(value)) {
+    const flattened: string[] = [];
+    for (const item of value) {
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        if (trimmed) flattened.push(trimmed);
+      }
+    }
+    return flattened;
+  }
+  return [];
+}
+
+function buildMetadataText(metadata: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!shouldIncludeMetadataKey(key)) continue;
+    parts.push(...collectMetadataStrings(value));
+  }
+  return parts.join('\n').trim();
+}
+
 export const NAMED_ENTITY_MODEL_ID = 'Xenova/distilbert-base-multilingual-cased-ner-hrl';
 const MODEL_ID = NAMED_ENTITY_MODEL_ID;
 const MAX_CHARS_PER_CHUNK = 800; // keep chunks manageable for the transformer context window
@@ -195,6 +247,46 @@ export function addEntitiesToAccumulator(
       if (!entry.positions) entry.positions = new Set<number>();
       entry.positions.add(position);
     }
+  }
+}
+
+export async function annotateMetadataWithNamedEntities(metadata: Record<string, unknown>) {
+  const metadataText = buildMetadataText(metadata);
+  if (!metadataText) return;
+
+  try {
+    const nerResult = await extractNamedEntities(metadataText);
+    if (nerResult.available) {
+      (metadata as any).nlpAnalysis = 'Metadata-only entity detection';
+      (metadata as any).nlpModel = nerResult.model ?? NAMED_ENTITY_MODEL_ID;
+      if (nerResult.truncated) {
+        (metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
+      }
+
+      const seen = new Set<string>();
+      const summary: string[] = [];
+      for (const item of nerResult.items) {
+        const key = `${item.label}::${item.value.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (summary.length < 8) {
+          summary.push(`${item.label}: ${item.value}`);
+        }
+      }
+
+      if (seen.size) {
+        (metadata as any).metadataNamedEntityCount = seen.size;
+        (metadata as any).metadataNamedEntities = summary;
+      }
+    } else {
+      (metadata as any).nlpAnalysis = 'Metadata-only fallback (NLP unavailable)';
+      if (nerResult.error) {
+        (metadata as any).nlpFallbackReason = nerResult.error;
+      }
+    }
+  } catch (error) {
+    (metadata as any).nlpAnalysis = 'Metadata-only fallback (NLP unavailable)';
+    (metadata as any).nlpFallbackReason = toErrorMessage(error);
   }
 }
 

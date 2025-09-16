@@ -10,13 +10,7 @@ import {
   AFFIL_CUES_RE,
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
-import {
-  extractNamedEntities,
-  addEntitiesToAccumulator,
-  finalizeAccumulator,
-  NAMED_ENTITY_MODEL_ID,
-  type EntityAccumulatorEntry,
-} from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities } from '../analysis/nlp';
 
 // It's important to set the worker source for pdfjs-dist
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
@@ -64,14 +58,6 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
     const ackMap = new Map<string, Set<number>>();
     const affMap = new Map<string, Set<number>>();
     const fullTextParts: string[] = [];
-    const entityAccumulator = new Map<string, EntityAccumulatorEntry>();
-    let nlpAttempted = false;
-    let nlpAnySuccess = false;
-    let nlpAnyFailure = false;
-    let nlpErrorMessage: string | undefined;
-    let nlpModel: string | undefined;
-    let nlpTruncated = false;
-
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc: any = await page.getTextContent();
@@ -105,27 +91,6 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
         affSentences.forEach((s: string) => addFinding(affMap, s, p));
       }
 
-      if (text && text.trim()) {
-        nlpAttempted = true;
-        try {
-          const nerResult = await extractNamedEntities(text);
-          if (nerResult.available) {
-            nlpAnySuccess = true;
-            if (!nlpModel && nerResult.model) nlpModel = nerResult.model;
-            if (nerResult.truncated) nlpTruncated = true;
-            if (nerResult.items.length) {
-              addEntitiesToAccumulator(entityAccumulator, nerResult.items, p);
-            }
-          } else {
-            nlpAnyFailure = true;
-            if (!nlpErrorMessage && nerResult.error) nlpErrorMessage = nerResult.error;
-          }
-        } catch (e) {
-          nlpAnyFailure = true;
-          if (!nlpErrorMessage) nlpErrorMessage = e instanceof Error ? e.message : String(e);
-        }
-      }
-
       scanTextForEmailsAndUrls(text, (value, kind) => {
         if (kind === 'email') {
           if (!emailPages.has(value)) emailPages.set(value, new Set());
@@ -149,11 +114,9 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
       // Do not add to potentialIssues; show as info banner instead
     }
 
-    const entityFindings = finalizeAccumulator(entityAccumulator);
     const hasEmails = emailList.length > 0;
     const hasUrls = urlList.length > 0;
-    const hasEntities = entityFindings.length > 0;
-    if (hasEmails || hasUrls || hasEntities) {
+    if (hasEmails || hasUrls) {
       const contentFindings =
         processedFile.contentFindings ?? {
           emails: [] as Array<{ value: string; pages: number[] }>,
@@ -166,31 +129,11 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
       contentFindings.urls = hasUrls
         ? urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) }))
         : contentFindings.urls;
-      if (hasEntities) {
-        contentFindings.entities = entityFindings;
-        contentFindings.entityPositionLabel = 'Pages';
-      }
 
       processedFile.contentFindings = contentFindings;
     }
 
-    if (nlpAttempted) {
-      if (nlpAnySuccess) {
-        (processedFile.metadata as any).nlpAnalysis = 'Transformers enabled';
-        (processedFile.metadata as any).nlpModel = nlpModel ?? NAMED_ENTITY_MODEL_ID;
-        if (nlpTruncated) {
-          (processedFile.metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
-        }
-        if (nlpAnyFailure && nlpErrorMessage) {
-          (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
-        }
-      } else if (nlpAnyFailure) {
-        (processedFile.metadata as any).nlpAnalysis = 'Fallback only (NLP unavailable)';
-        if (nlpErrorMessage) {
-          (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
-        }
-      }
-    }
+    await annotateMetadataWithNamedEntities(processedFile.metadata);
 
     // Research signals + findings
     const fullText = fullTextParts.join('\n');
