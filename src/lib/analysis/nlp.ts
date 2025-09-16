@@ -26,6 +26,8 @@ export interface TokenClassificationResult {
   error?: string;
 }
 
+const SENSITIVE_ENTITY_LABELS = new Set(['PER', 'ORG']);
+
 export async function shouldFlagPersonValue(raw: unknown): Promise<boolean> {
   if (typeof raw !== 'string') return false;
   const trimmed = raw.trim();
@@ -34,7 +36,7 @@ export async function shouldFlagPersonValue(raw: unknown): Promise<boolean> {
   try {
     const result = await classifyNamedEntitySpans(trimmed);
     if (!result.available) return true; // Fallback: preserve legacy behaviour
-    return result.spans.some((span) => span.label === 'PER');
+    return result.spans.some((span) => SENSITIVE_ENTITY_LABELS.has(span.label));
   } catch {
     return true; // Fallback on unexpected errors
   }
