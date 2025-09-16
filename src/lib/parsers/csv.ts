@@ -8,6 +8,14 @@ import {
 } from '../analysis/research-signals';
 import { escapeRegExp, parseDelimitedLine } from '../utils/text';
 import { variance } from '../utils/number';
+import {
+  extractNamedEntities,
+  addEntitiesToAccumulator,
+  finalizeAccumulator,
+  attachPositionsFromLines,
+  NAMED_ENTITY_MODEL_ID,
+  type EntityAccumulatorEntry,
+} from '../analysis/nlp';
 
 export async function parseCsv(file: File): Promise<ProcessedFile> {
   const text = await file.text();
@@ -19,6 +27,13 @@ export async function parseCsv(file: File): Promise<ProcessedFile> {
   };
 
   try {
+    const entityAccumulator = new Map<string, EntityAccumulatorEntry>();
+    let nlpAttempted = false;
+    let nlpAnySuccess = false;
+    let nlpAnyFailure = false;
+    let nlpErrorMessage: string | undefined;
+    let nlpModel: string | undefined;
+    let nlpTruncated = false;
     // Detect delimiter using first non-empty lines (comma, tab, semicolon, pipe)
     const lines = text.split(/\r?\n/);
     const sample = lines.filter((l) => l.trim().length > 0).slice(0, 20);
@@ -111,15 +126,70 @@ export async function parseCsv(file: File): Promise<ProcessedFile> {
       if (AFFIL_HEADER_RE.test(joined) || AFFIL_CUES_RE.test(joined)) addFinding(affMap, joined, page);
     });
 
+    if (text.trim()) {
+      nlpAttempted = true;
+      try {
+        const nerResult = await extractNamedEntities(text);
+        if (nerResult.available) {
+          nlpAnySuccess = true;
+          if (!nlpModel && nerResult.model) nlpModel = nerResult.model;
+          if (nerResult.truncated) nlpTruncated = true;
+          if (nerResult.items.length) {
+            addEntitiesToAccumulator(entityAccumulator, nerResult.items);
+          }
+        } else {
+          nlpAnyFailure = true;
+          if (!nlpErrorMessage && nerResult.error) nlpErrorMessage = nerResult.error;
+        }
+      } catch (e) {
+        nlpAnyFailure = true;
+        if (!nlpErrorMessage) nlpErrorMessage = e instanceof Error ? e.message : String(e);
+      }
+    }
+
     const emailList = Array.from(emailPages.keys());
     const urlList = Array.from(urlPages.keys());
     if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
     if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
-    if (emailList.length || urlList.length) {
-      processedFile.contentFindings = {
-        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
-        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
-      };
+    const entityFindings = finalizeAccumulator(entityAccumulator);
+    const rowStrings = rows.map((row) => row.join(' '));
+    const enrichedEntities = attachPositionsFromLines(entityFindings, rowStrings);
+    const hasEmails = emailList.length > 0;
+    const hasUrls = urlList.length > 0;
+    const hasEntities = enrichedEntities.length > 0;
+    if (hasEmails || hasUrls || hasEntities) {
+      const contentFindings =
+        processedFile.contentFindings ?? {
+          emails: [] as Array<{ value: string; pages: number[] }>,
+          urls: [] as Array<{ value: string; pages: number[] }>,
+        };
+      contentFindings.emails = hasEmails
+        ? emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) }))
+        : contentFindings.emails;
+      contentFindings.urls = hasUrls
+        ? urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) }))
+        : contentFindings.urls;
+      if (hasEntities) {
+        contentFindings.entities = enrichedEntities;
+        contentFindings.entityPositionLabel = 'Rows';
+      }
+      processedFile.contentFindings = contentFindings;
+    }
+
+    if (nlpAttempted) {
+      if (nlpAnySuccess) {
+        (processedFile.metadata as any).nlpAnalysis = 'Transformers enabled';
+        (processedFile.metadata as any).nlpModel = nlpModel ?? NAMED_ENTITY_MODEL_ID;
+        if (nlpTruncated) {
+          (processedFile.metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
+        }
+        if (nlpAnyFailure && nlpErrorMessage) {
+          (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
+        }
+      } else if (nlpAnyFailure) {
+        (processedFile.metadata as any).nlpAnalysis = 'Fallback only (NLP unavailable)';
+        if (nlpErrorMessage) (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
+      }
     }
     const ackItems = Array.from(ackMap.keys()).map((t) => ({ text: t, pages: Array.from(ackMap.get(t)!).sort((a, b) => a - b) }));
     const affItems = Array.from(affMap.keys()).map((t) => ({ text: t, pages: Array.from(affMap.get(t)!).sort((a, b) => a - b) }));

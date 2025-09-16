@@ -17,6 +17,14 @@ export interface ProcessedFile {
   contentFindings?: {
     emails: Array<{ value: string; pages: number[] }>;
     urls: Array<{ value: string; pages: number[] }>;
+    entities?: Array<{
+      label: string;
+      value: string;
+      occurrences: number;
+      averageScore: number;
+      positions?: number[];
+    }>;
+    entityPositionLabel?: string;
   };
   // Structured research findings for acknowledgements and affiliations with locations
   researchFindings?: {

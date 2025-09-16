@@ -10,6 +10,14 @@ import {
 } from '../analysis/research-signals';
 import { extractFrontMatter } from '../utils/text';
 import { toISO } from '../utils/date';
+import {
+  extractNamedEntities,
+  addEntitiesToAccumulator,
+  finalizeAccumulator,
+  attachPositionsFromLines,
+  NAMED_ENTITY_MODEL_ID,
+  type EntityAccumulatorEntry,
+} from '../analysis/nlp';
 
 export async function parseMarkdown(file: File): Promise<ProcessedFile> {
   const text = await file.text();
@@ -21,6 +29,13 @@ export async function parseMarkdown(file: File): Promise<ProcessedFile> {
   };
 
   try {
+    const entityAccumulator = new Map<string, EntityAccumulatorEntry>();
+    let nlpAttempted = false;
+    let nlpAnySuccess = false;
+    let nlpAnyFailure = false;
+    let nlpErrorMessage: string | undefined;
+    let nlpModel: string | undefined;
+    let nlpTruncated = false;
     // Front matter (YAML between --- lines at top)
     const fm = extractFrontMatter(text);
     if (fm) {
@@ -124,15 +139,69 @@ export async function parseMarkdown(file: File): Promise<ProcessedFile> {
       }
     });
 
+    if (text.trim()) {
+      nlpAttempted = true;
+      try {
+        const nerResult = await extractNamedEntities(text);
+        if (nerResult.available) {
+          nlpAnySuccess = true;
+          if (!nlpModel && nerResult.model) nlpModel = nerResult.model;
+          if (nerResult.truncated) nlpTruncated = true;
+          if (nerResult.items.length) {
+            addEntitiesToAccumulator(entityAccumulator, nerResult.items);
+          }
+        } else {
+          nlpAnyFailure = true;
+          if (!nlpErrorMessage && nerResult.error) nlpErrorMessage = nerResult.error;
+        }
+      } catch (e) {
+        nlpAnyFailure = true;
+        if (!nlpErrorMessage) nlpErrorMessage = e instanceof Error ? e.message : String(e);
+      }
+    }
+
     const emailList = Array.from(emailPages.keys());
     const urlList = Array.from(urlPages.keys());
     if (emailList.length) (processedFile.metadata as any).emailsFound = emailList;
     if (urlList.length) (processedFile.metadata as any).urlsFound = urlList;
-    if (emailList.length || urlList.length) {
-      processedFile.contentFindings = {
-        emails: emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) })),
-        urls: urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) })),
-      };
+    const entityFindings = finalizeAccumulator(entityAccumulator);
+    const enrichedEntities = attachPositionsFromLines(entityFindings, lines);
+    const hasEmails = emailList.length > 0;
+    const hasUrls = urlList.length > 0;
+    const hasEntities = enrichedEntities.length > 0;
+    if (hasEmails || hasUrls || hasEntities) {
+      const contentFindings =
+        processedFile.contentFindings ?? {
+          emails: [] as Array<{ value: string; pages: number[] }>,
+          urls: [] as Array<{ value: string; pages: number[] }>,
+        };
+      contentFindings.emails = hasEmails
+        ? emailList.map((e) => ({ value: e, pages: Array.from(emailPages.get(e)!).sort((a, b) => a - b) }))
+        : contentFindings.emails;
+      contentFindings.urls = hasUrls
+        ? urlList.map((u) => ({ value: u, pages: Array.from(urlPages.get(u)!).sort((a, b) => a - b) }))
+        : contentFindings.urls;
+      if (hasEntities) {
+        contentFindings.entities = enrichedEntities;
+        contentFindings.entityPositionLabel = 'Lines';
+      }
+      processedFile.contentFindings = contentFindings;
+    }
+
+    if (nlpAttempted) {
+      if (nlpAnySuccess) {
+        (processedFile.metadata as any).nlpAnalysis = 'Transformers enabled';
+        (processedFile.metadata as any).nlpModel = nlpModel ?? NAMED_ENTITY_MODEL_ID;
+        if (nlpTruncated) {
+          (processedFile.metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
+        }
+        if (nlpAnyFailure && nlpErrorMessage) {
+          (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
+        }
+      } else if (nlpAnyFailure) {
+        (processedFile.metadata as any).nlpAnalysis = 'Fallback only (NLP unavailable)';
+        if (nlpErrorMessage) (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
+      }
     }
 
     // Research signals + findings from Markdown

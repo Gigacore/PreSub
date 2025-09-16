@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 35 * 1024 * 1024,
+      },
       manifest: {
         name: 'PreSub',
         short_name: 'PreSub',
@@ -50,6 +53,9 @@ export default defineConfig(({ mode }) => {
             if (id.includes('pdfjs-dist')) return 'vendor-pdf';
             if (id.includes('xlsx') || id.includes('mammoth')) return 'vendor-office';
             if (id.includes('exifreader') || id.includes('jszip')) return 'vendor-media';
+            if (id.includes('@huggingface/transformers') || id.includes('onnxruntime-web') || id.includes('@xenova/')) {
+              return 'vendor-nlp';
+            }
             // Fallback: group other node_modules into a shared vendor chunk
             return 'vendor';
           }

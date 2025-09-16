@@ -10,6 +10,14 @@ import {
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
 import { extractOOXMLMetadata } from '../utils/ooxml';
+import {
+  extractNamedEntities,
+  addEntitiesToAccumulator,
+  finalizeAccumulator,
+  NAMED_ENTITY_MODEL_ID,
+  attachPositionsFromLines,
+  type EntityAccumulatorEntry,
+} from '../analysis/nlp';
 
 export async function parseDocx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -39,6 +47,13 @@ export async function parseDocx(file: File): Promise<ProcessedFile> {
     }
 
     const result = await mammoth.extractRawText({ arrayBuffer });
+    const entityAccumulator = new Map<string, EntityAccumulatorEntry>();
+    let nlpAttempted = false;
+    let nlpAnySuccess = false;
+    let nlpAnyFailure = false;
+    let nlpErrorMessage: string | undefined;
+    let nlpModel: string | undefined;
+    let nlpTruncated = false;
     const rawText = result.value || '';
 
     // Scan the extracted text for emails and URLs.
@@ -66,6 +81,26 @@ export async function parseDocx(file: File): Promise<ProcessedFile> {
           emails: emailList.map((e) => ({ value: e, pages: [1] })),
           urls: urlList.map((u) => ({ value: u, pages: [1] })),
         };
+      }
+      if (rawText.trim()) {
+        nlpAttempted = true;
+        try {
+          const nerResult = await extractNamedEntities(rawText);
+          if (nerResult.available) {
+            nlpAnySuccess = true;
+            if (!nlpModel && nerResult.model) nlpModel = nerResult.model;
+            if (nerResult.truncated) nlpTruncated = true;
+            if (nerResult.items.length) {
+              addEntitiesToAccumulator(entityAccumulator, nerResult.items);
+            }
+          } else {
+            nlpAnyFailure = true;
+            if (!nlpErrorMessage && nerResult.error) nlpErrorMessage = nerResult.error;
+          }
+        } catch (e) {
+          nlpAnyFailure = true;
+          if (!nlpErrorMessage) nlpErrorMessage = e instanceof Error ? e.message : String(e);
+        }
       }
       // Research signals and findings from full text
       if (rawText && rawText.replace(/\s+/g, '').length > 20) {
@@ -103,6 +138,35 @@ export async function parseDocx(file: File): Promise<ProcessedFile> {
         if ((processedFile.metadata as any).affiliationsDetected) {
           const guesses = affItems.length ? affItems.map((i) => i.text) : signals.affiliationsGuesses || [];
           if (guesses.length) (processedFile.metadata as any).affiliationsGuesses = Array.from(new Set(guesses)).slice(0, 8);
+        }
+      }
+
+      if (nlpAttempted) {
+        const entityFindings = finalizeAccumulator(entityAccumulator);
+        const enrichedEntities = attachPositionsFromLines(entityFindings, rawText.split(/\r?\n/));
+        if (enrichedEntities.length) {
+          const contentFindings =
+            processedFile.contentFindings ?? {
+              emails: [] as Array<{ value: string; pages: number[] }>,
+              urls: [] as Array<{ value: string; pages: number[] }>,
+            };
+          contentFindings.entities = enrichedEntities;
+          contentFindings.entityPositionLabel = 'Lines';
+          processedFile.contentFindings = contentFindings;
+        }
+
+        if (nlpAnySuccess) {
+          (processedFile.metadata as any).nlpAnalysis = 'Transformers enabled';
+          (processedFile.metadata as any).nlpModel = nlpModel ?? NAMED_ENTITY_MODEL_ID;
+          if (nlpTruncated) {
+            (processedFile.metadata as any).nlpAnalysisNote = 'Named entity detection truncated to reduce processing time.';
+          }
+          if (nlpAnyFailure && nlpErrorMessage) {
+            (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
+          }
+        } else if (nlpAnyFailure) {
+          (processedFile.metadata as any).nlpAnalysis = 'Fallback only (NLP unavailable)';
+          if (nlpErrorMessage) (processedFile.metadata as any).nlpFallbackReason = nlpErrorMessage;
         }
       }
     } catch (e) {
