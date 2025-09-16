@@ -69,7 +69,7 @@ export default function NlpSetupModal() {
               Setting up Natural Language Processing
             </h2>
             <p id="nlp-setup-description" className="mt-1 text-sm text-gray-600">
-              Downloading the language model. This one-time setup may take a moment.
+              Downloading the language model.
             </p>
           </div>
         </div>
