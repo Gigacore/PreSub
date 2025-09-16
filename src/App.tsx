@@ -4,6 +4,7 @@ import Footer from './components/Footer';
 import FileDropzone from './components/FileDropzone';
 import Results from './components/Results';
 import { parseFile } from './lib/file-parser';
+import NlpSetupModal from './components/NlpSetupModal';
 
 export interface ProcessedFile {
   fileName: string;
@@ -135,6 +136,7 @@ function App() {
         )}
       </main>
       <Footer />
+      <NlpSetupModal />
 
       {/* Back to Top floating button */}
       {showBackToTop && (

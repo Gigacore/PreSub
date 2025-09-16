@@ -26,6 +26,23 @@ export interface TokenClassificationResult {
   error?: string;
 }
 
+export type NlpSetupEvent =
+  | { status: 'start'; model: string }
+  | { status: 'progress'; model: string; progress?: number }
+  | { status: 'ready'; model: string }
+  | { status: 'error'; model: string; error: string };
+
+export const NLP_SETUP_EVENT = 'presub:nlp-setup';
+
+function emitNlpSetupEvent(detail: NlpSetupEvent) {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  try {
+    window.dispatchEvent(new CustomEvent<NlpSetupEvent>(NLP_SETUP_EVENT, { detail }));
+  } catch {
+    // Ignore environments without CustomEvent support.
+  }
+}
+
 const SENSITIVE_ENTITY_LABELS = new Set(['PER', 'ORG']);
 
 export async function shouldFlagPersonValue(raw: unknown): Promise<boolean> {
@@ -116,6 +133,7 @@ async function getPipeline() {
     throw pipelineError;
   }
   if (!pipelinePromise) {
+    emitNlpSetupEvent({ status: 'start', model: MODEL_ID });
     pipelinePromise = import('@huggingface/transformers')
       .then(async (mod) => {
         const { pipeline, env } = mod as any;
@@ -131,14 +149,34 @@ async function getPipeline() {
         } catch {
           // Ignore optional env tweaks; not fatal if unavailable.
         }
-        return pipeline('token-classification', MODEL_ID, {
+        let readyEventSeen = false;
+        const progressCallback = (info: any) => {
+          if (!info || typeof info !== 'object') return;
+          const status = String((info as any).status ?? '');
+          if (status === 'progress') {
+            const rawProgress = (info as any).progress;
+            const progress = typeof rawProgress === 'number' ? rawProgress : undefined;
+            emitNlpSetupEvent({ status: 'progress', model: MODEL_ID, progress });
+          } else if (status === 'ready') {
+            readyEventSeen = true;
+            emitNlpSetupEvent({ status: 'ready', model: MODEL_ID });
+          }
+        };
+        const instance = await pipeline('token-classification', MODEL_ID, {
           aggregationStrategy: 'simple',
           // Explicit dtype avoids runtime warning on WASM backends defaulting to q8.
           dtype: 'q8',
+          progress_callback: progressCallback,
         });
+        if (!readyEventSeen) {
+          emitNlpSetupEvent({ status: 'ready', model: MODEL_ID });
+        }
+        return instance;
       })
       .catch((error) => {
-        pipelineError = error instanceof Error ? error : new Error(toErrorMessage(error));
+        const message = toErrorMessage(error);
+        emitNlpSetupEvent({ status: 'error', model: MODEL_ID, error: message });
+        pipelineError = error instanceof Error ? error : new Error(message);
         pipelinePromise = null;
         throw pipelineError;
       });
