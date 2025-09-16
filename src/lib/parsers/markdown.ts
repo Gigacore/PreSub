@@ -1,5 +1,4 @@
 import type { ProcessedFile } from '../../App';
-import { containsLatex } from '../utils/misc';
 import { scanTextForEmailsAndUrls } from '../analysis/content-scanner';
 import {
   addFinding,
@@ -47,7 +46,7 @@ export async function parseMarkdown(file: File): Promise<ProcessedFile> {
       const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
       for (const a of authors) {
         const trimmed = a.trim();
-        if (trimmed && !containsLatex(trimmed)) issues.push({ type: 'AUTHOR FOUND', value: trimmed });
+        if (trimmed) issues.push({ type: 'AUTHOR FOUND', value: trimmed });
       }
       if (issues.length) processedFile.potentialIssues = issues;
     }

@@ -1,6 +1,5 @@
 import JSZip from 'jszip';
 import type { ProcessedFile } from '../../App';
-import { containsLatex } from '../utils/misc';
 import { scanTextForEmailsAndUrls } from '../analysis/content-scanner';
 import {
   addFinding,
@@ -29,9 +28,9 @@ export async function parsePptx(file: File): Promise<ProcessedFile> {
     const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
     const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
-    if (lastModifiedBy && !containsLatex(lastModifiedBy)) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('PPTX metadata extraction failed:', e);

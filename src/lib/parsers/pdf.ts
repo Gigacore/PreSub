@@ -1,6 +1,5 @@
 import * as pdfjs from 'pdfjs-dist';
 import type { ProcessedFile } from '../../App';
-import { containsLatex } from '../utils/misc';
 import { scanTextForEmailsAndUrls } from '../analysis/content-scanner';
 import {
   addFinding,
@@ -35,10 +34,10 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
     const author = typeof info.Author === 'string' ? info.Author.trim() : '';
     const creator = typeof info.Creator === 'string' ? info.Creator.trim() : '';
 
-    if (author && !containsLatex(author)) {
+    if (author) {
       issues.push({ type: 'AUTHOR FOUND', value: author });
     }
-    if (creator && !containsLatex(creator)) {
+    if (creator) {
       issues.push({ type: 'CREATOR FOUND', value: creator });
     }
     processedFile.metadata.title = info.Title;

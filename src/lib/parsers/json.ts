@@ -1,5 +1,4 @@
 import type { ProcessedFile } from '../../App';
-import { containsLatex } from '../utils/misc';
 import { scanTextForEmailsAndUrls } from '../analysis/content-scanner';
 import {
   addFinding,
@@ -84,9 +83,9 @@ export async function parseJson(file: File): Promise<ProcessedFile> {
     if (uLmb.length) (processedFile.metadata as any).lastModifiedBy = uLmb.length === 1 ? uLmb[0] : uLmb;
 
     // Flag potential issues for those
-    for (const a of uAuthors) if (!containsLatex(a)) potentialIssues.push({ type: 'AUTHOR FOUND', value: a });
-    for (const c of uCreators) if (!containsLatex(c)) potentialIssues.push({ type: 'CREATOR FOUND', value: c });
-    for (const l of uLmb) if (!containsLatex(l)) potentialIssues.push({ type: 'LAST MODIFIED BY FOUND', value: l });
+    for (const a of uAuthors) potentialIssues.push({ type: 'AUTHOR FOUND', value: a });
+    for (const c of uCreators) potentialIssues.push({ type: 'CREATOR FOUND', value: c });
+    for (const l of uLmb) potentialIssues.push({ type: 'LAST MODIFIED BY FOUND', value: l });
 
     if (potentialIssues.length) processedFile.potentialIssues = potentialIssues;
 

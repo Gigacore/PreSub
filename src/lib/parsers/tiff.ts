@@ -1,5 +1,4 @@
 import type { ProcessedFile } from '../../App';
-import { containsLatex } from '../utils/misc';
 import {
   extractExifMetadata,
   extractXmpMetadataFromXml,
@@ -35,8 +34,8 @@ export async function parseTiff(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author && !containsLatex(author)) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator && !containsLatex(creator)) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
     if (issues.length) processedFile.potentialIssues = issues;
 
     if (!xmpXml) {
