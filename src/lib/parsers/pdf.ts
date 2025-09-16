@@ -9,7 +9,7 @@ import {
   AFFIL_CUES_RE,
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
-import { annotateMetadataWithNamedEntities, shouldFlagAuthorValue } from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities, shouldFlagPersonValue } from '../analysis/nlp';
 
 // It's important to set the worker source for pdfjs-dist
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
@@ -34,10 +34,10 @@ export async function parsePdf(file: File): Promise<ProcessedFile> {
     const author = typeof info.Author === 'string' ? info.Author.trim() : '';
     const creator = typeof info.Creator === 'string' ? info.Creator.trim() : '';
 
-    if (author && (await shouldFlagAuthorValue(author))) {
+    if (author && (await shouldFlagPersonValue(author))) {
       issues.push({ type: 'AUTHOR FOUND', value: author });
     }
-    if (creator) {
+    if (creator && (await shouldFlagPersonValue(creator))) {
       issues.push({ type: 'CREATOR FOUND', value: creator });
     }
     processedFile.metadata.title = info.Title;

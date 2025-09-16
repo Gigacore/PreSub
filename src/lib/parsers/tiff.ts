@@ -4,7 +4,7 @@ import {
   extractXmpMetadataFromXml,
   extractXmpXmlFromBuffer,
 } from '../utils/image';
-import { shouldFlagAuthorValue } from '../analysis/nlp';
+import { shouldFlagPersonValue } from '../analysis/nlp';
 
 export async function parseTiff(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -35,8 +35,10 @@ export async function parseTiff(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author && (await shouldFlagAuthorValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && (await shouldFlagPersonValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && (await shouldFlagPersonValue(creator))) {
+      issues.push({ type: 'CREATOR FOUND', value: creator });
+    }
     if (issues.length) processedFile.potentialIssues = issues;
 
     if (!xmpXml) {

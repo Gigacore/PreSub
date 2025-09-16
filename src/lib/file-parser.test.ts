@@ -4,7 +4,7 @@ import { parseFile } from './file-parser';
 // Mock the parsing libraries
 vi.mock('./analysis/nlp', () => ({
   annotateMetadataWithNamedEntities: vi.fn().mockResolvedValue(undefined),
-  shouldFlagAuthorValue: vi.fn().mockResolvedValue(true),
+  shouldFlagPersonValue: vi.fn().mockResolvedValue(true),
 }));
 vi.mock('pdfjs-dist', () => ({
   getDocument: vi.fn().mockReturnValue({

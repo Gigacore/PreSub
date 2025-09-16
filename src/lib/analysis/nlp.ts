@@ -26,7 +26,7 @@ export interface TokenClassificationResult {
   error?: string;
 }
 
-export async function shouldFlagAuthorValue(raw: unknown): Promise<boolean> {
+export async function shouldFlagPersonValue(raw: unknown): Promise<boolean> {
   if (typeof raw !== 'string') return false;
   const trimmed = raw.trim();
   if (!trimmed) return false;
@@ -296,9 +296,34 @@ export async function classifyNamedEntitySpans(text: string): Promise<TokenClass
 
     spans.sort((a, b) => a.start - b.start);
 
+    const merged: NamedEntitySpan[] = [];
+    const isJoinableGap = (gap: string) => {
+      if (!gap) return true;
+      return /^[\s.'’\-·]+$/u.test(gap);
+    };
+
+    for (const span of spans) {
+      const prev = merged[merged.length - 1];
+      if (prev && prev.label === span.label) {
+        const gap = trimmed.slice(prev.end, span.start);
+        const overlaps = span.start <= prev.end;
+        if (overlaps || isJoinableGap(gap)) {
+          const newEnd = Math.max(prev.end, span.end);
+          merged[merged.length - 1] = {
+            ...prev,
+            end: newEnd,
+            text: trimmed.slice(prev.start, newEnd),
+            score: Math.max(prev.score, span.score),
+          };
+          continue;
+        }
+      }
+      merged.push(span);
+    }
+
     return {
       available: true,
-      spans,
+      spans: merged,
     };
   } catch (error) {
     return {

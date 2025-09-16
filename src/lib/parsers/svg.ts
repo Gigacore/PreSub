@@ -4,7 +4,7 @@ import {
   extractXmpXmlFromString,
 } from '../utils/image';
 import { parseXml, textContent } from '../utils/xml';
-import { shouldFlagAuthorValue } from '../analysis/nlp';
+import { shouldFlagPersonValue } from '../analysis/nlp';
 
 export async function parseSvg(file: File): Promise<ProcessedFile> {
   const text = await file.text();
@@ -54,8 +54,10 @@ export async function parseSvg(file: File): Promise<ProcessedFile> {
     const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
     const author = String((processedFile.metadata as any).author || '').trim();
     const creator = String((processedFile.metadata as any).creator || '').trim();
-    if (author && (await shouldFlagAuthorValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
-    if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
+    if (author && (await shouldFlagPersonValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
+    if (creator && (await shouldFlagPersonValue(creator))) {
+      issues.push({ type: 'CREATOR FOUND', value: creator });
+    }
     if (issues.length) processedFile.potentialIssues = issues;
   } catch (e) {
     console.warn('SVG parse warning:', e);

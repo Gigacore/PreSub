@@ -14,6 +14,8 @@ const ENTITY_STYLES: Record<string, { text: string; background: string; tag: str
 };
 
 const DEFAULT_ENTITY_STYLE = { text: '#1F2937', background: '#E5E7EB', tag: '#6B7280' };
+const HIGHLIGHT_KEYS = ['author', 'creator', 'lastModifiedBy'] as const;
+const HIGHLIGHT_KEY_SET = new Set<string>(HIGHLIGHT_KEYS);
 
 interface MetadataDisplayProps {
   metadata: ProcessedFile['metadata'];
@@ -43,7 +45,7 @@ function isNonEmpty(value: unknown) {
 }
 
 export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: MetadataDisplayProps) {
-  const [authorSegments, setAuthorSegments] = useState<HighlightSegment[] | null>(null);
+  const [entitySegments, setEntitySegments] = useState<Record<string, HighlightSegment[] | null>>({});
 
   const priorityKeys: string[] = ['author', 'creator', 'lastModifiedBy'];
   const hiddenKeys: string[] = [
@@ -51,6 +53,7 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
     'acknowledgementsDetected', 'acknowledgementsExcerpt',
     'fundingDetected', 'fundingMentions', 'grantIds',
     'affiliationsDetected', 'affiliationsGuesses',
+    'nlpAnalysis', 'nlpModel', 'metadataNamedEntityCount', 'metadataNamedEntities',
   ];
   const countKeys: string[] = ['words', 'slides', 'pages', 'numberOfSheets'];
   const dateKeys: string[] = ['creationDate', 'modificationDate'];
@@ -60,33 +63,23 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
   const keyIn = (k: string) => Object.prototype.hasOwnProperty.call(metadata, k);
 
   const authorRaw = metadata?.author as unknown;
+  const creatorRaw = metadata?.creator as unknown;
+  const lastModifiedByRaw = metadata?.lastModifiedBy as unknown;
 
   useEffect(() => {
     let cancelled = false;
+    const sourceEntries: Array<[string, unknown]> = [
+      ['author', authorRaw],
+      ['creator', creatorRaw],
+      ['lastModifiedBy', lastModifiedByRaw],
+    ];
 
-    if (typeof authorRaw !== 'string') {
-      setAuthorSegments(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const trimmed = authorRaw.trim();
-    if (!trimmed) {
-      setAuthorSegments(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    classifyNamedEntitySpans(trimmed)
-      .then((result) => {
-        if (cancelled) return;
-        if (!result.available || !result.spans.length) {
-          setAuthorSegments(null);
-          return;
-        }
-
+    const buildSegments = async (value: string): Promise<HighlightSegment[] | null> => {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      try {
+        const result = await classifyNamedEntitySpans(trimmed);
+        if (!result.available || !result.spans.length) return null;
         const segments: HighlightSegment[] = [];
         let cursor = 0;
         for (const span of result.spans) {
@@ -106,22 +99,42 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
         if (cursor < trimmed.length) {
           segments.push({ text: trimmed.slice(cursor) });
         }
-        setAuthorSegments(segments);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAuthorSegments(null);
-      });
+        return segments;
+      } catch {
+        return null;
+      }
+    };
+
+    const load = async () => {
+      const next: Record<string, HighlightSegment[] | null> = {};
+      for (const [key, raw] of sourceEntries) {
+        if (typeof raw !== 'string') {
+          next[key] = null;
+          continue;
+        }
+        const trimmedValue = raw.trim();
+        if (!trimmedValue) {
+          next[key] = null;
+          continue;
+        }
+        next[key] = await buildSegments(trimmedValue);
+      }
+      if (!cancelled) {
+        setEntitySegments(next);
+      }
+    };
+
+    load();
 
     return () => {
       cancelled = true;
     };
-  }, [authorRaw]);
+  }, [authorRaw, creatorRaw, lastModifiedByRaw]);
 
   const renderValue = useMemo(() => {
     return (key: string, value: unknown): { node: ReactNode; title: string } => {
       const fallback = formatValue(value);
-      if (key !== 'author') {
+      if (!HIGHLIGHT_KEY_SET.has(key)) {
         return { node: fallback, title: fallback };
       }
 
@@ -134,17 +147,18 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
         return { node: '-', title: '-' };
       }
 
-      if (!authorSegments || authorSegments.length === 0) {
+      const segments = entitySegments[key];
+      if (!segments || segments.length === 0) {
         return { node: trimmed, title: trimmed };
       }
 
       return {
         node: (
           <span className="inline-flex flex-wrap gap-1">{
-            authorSegments.map((segment, index) => {
+            segments.map((segment, index) => {
               if (!segment.label) {
                 return (
-                  <span key={`author-fragment-${index}`} className="whitespace-pre-wrap">
+                  <span key={`${key}-fragment-${index}`} className="whitespace-pre-wrap">
                     {segment.text}
                   </span>
                 );
@@ -152,7 +166,7 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
               const style = ENTITY_STYLES[segment.label] ?? DEFAULT_ENTITY_STYLE;
               return (
                 <span
-                  key={`author-entity-${index}`}
+                  key={`${key}-entity-${index}`}
                   className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium"
                   style={{
                     backgroundColor: style.background,
@@ -177,7 +191,7 @@ export function MetadataDisplay({ metadata, ignoredKeys, toggleIgnore }: Metadat
         title: trimmed,
       };
     };
-  }, [authorSegments]);
+  }, [entitySegments]);
 
   const restEntries = entries.filter(
     ([k]) =>

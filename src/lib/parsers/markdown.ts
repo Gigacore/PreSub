@@ -9,7 +9,7 @@ import {
 } from '../analysis/research-signals';
 import { extractFrontMatter } from '../utils/text';
 import { toISO } from '../utils/date';
-import { annotateMetadataWithNamedEntities, shouldFlagAuthorValue } from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities, shouldFlagPersonValue } from '../analysis/nlp';
 
 export async function parseMarkdown(file: File): Promise<ProcessedFile> {
   const text = await file.text();
@@ -47,7 +47,7 @@ export async function parseMarkdown(file: File): Promise<ProcessedFile> {
       for (const a of authors) {
         const trimmed = a.trim();
         if (!trimmed) continue;
-        if (await shouldFlagAuthorValue(trimmed)) {
+        if (await shouldFlagPersonValue(trimmed)) {
           issues.push({ type: 'AUTHOR FOUND', value: trimmed });
         }
       }

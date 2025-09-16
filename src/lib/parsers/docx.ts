@@ -9,7 +9,7 @@ import {
   AFFIL_HEADER_RE,
 } from '../analysis/research-signals';
 import { extractOOXMLMetadata } from '../utils/ooxml';
-import { annotateMetadataWithNamedEntities, shouldFlagAuthorValue } from '../analysis/nlp';
+import { annotateMetadataWithNamedEntities, shouldFlagPersonValue } from '../analysis/nlp';
 
 export async function parseDocx(file: File): Promise<ProcessedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -29,9 +29,11 @@ export async function parseDocx(file: File): Promise<ProcessedFile> {
       const creator = typeof meta.creator === 'string' ? meta.creator.trim() : '';
       const lastModifiedBy = typeof meta.lastModifiedBy === 'string' ? meta.lastModifiedBy.trim() : '';
       const issues: NonNullable<ProcessedFile['potentialIssues']> = [];
-      if (author && (await shouldFlagAuthorValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
-      if (creator) issues.push({ type: 'CREATOR FOUND', value: creator });
-      if (lastModifiedBy) issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+      if (author && (await shouldFlagPersonValue(author))) issues.push({ type: 'AUTHOR FOUND', value: author });
+      if (creator && (await shouldFlagPersonValue(creator))) issues.push({ type: 'CREATOR FOUND', value: creator });
+      if (lastModifiedBy && (await shouldFlagPersonValue(lastModifiedBy))) {
+        issues.push({ type: 'LAST MODIFIED BY FOUND', value: lastModifiedBy });
+      }
       if (issues.length) processedFile.potentialIssues = issues;
     } catch (e) {
       // Ignore metadata errors for docx; continue with text extraction
