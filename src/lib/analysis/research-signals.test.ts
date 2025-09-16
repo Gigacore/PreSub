@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scanResearchSignals } from './research-signals';
+import { scanResearchSignals, addFinding } from './research-signals';
 
 describe('scanResearchSignals', () => {
   it('should detect an acknowledgements section', () => {
@@ -37,4 +37,39 @@ describe('scanResearchSignals', () => {
     expect(signals.fundingDetected).toBe(false);
     expect(signals.affiliationsDetected).toBe(false);
   });
+
+  it('should handle empty text', () => {
+    const signals = scanResearchSignals('');
+    expect(signals.acknowledgementsDetected).toBe(false);
+    expect(signals.fundingDetected).toBe(false);
+    expect(signals.affiliationsDetected).toBe(false);
+  });
+});
+
+describe('addFinding', () => {
+    it('should add a new finding to the map', () => {
+        const map = new Map();
+        addFinding(map, 'Test finding', 1);
+        expect(map.has('Test finding')).toBe(true);
+        expect(Array.from(map.get('Test finding')!)).toEqual([1]);
+    });
+
+    it('should add a page number to an existing finding', () => {
+        const map = new Map();
+        addFinding(map, 'Test finding', 1);
+        addFinding(map, 'Test finding', 2);
+        expect(Array.from(map.get('Test finding')!)).toEqual([1, 2]);
+    });
+
+    it('should normalize the key', () => {
+        const map = new Map();
+        addFinding(map, '  Test  finding  ', 1);
+        expect(map.has('Test finding')).toBe(true);
+    });
+
+    it('should not add empty keys', () => {
+        const map = new Map();
+        addFinding(map, '   ', 1);
+        expect(map.size).toBe(0);
+    });
 });
